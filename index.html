@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/app-icon-512.png" />
+  <title>CrossFit Tracker | Premium Beta</title>
+
+  <script>
+    // Diagnostic tool for mobile
+    window.onerror = function (msg, url, line, col, error) {
+      var debugDiv = document.getElementById('mobile-debug');
+      if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'mobile-debug';
+        debugDiv.style = 'position:fixed;bottom:0;left:0;right:0;background:rgba(255,0,0,0.9);color:white;padding:10px;font-size:10px;z-index:9999;word-break:break-all;max-height:150px;overflow:auto;';
+        document.body.appendChild(debugDiv);
+      }
+      debugDiv.innerHTML += '<div>ERROR: ' + msg + ' (' + line + ':' + col + ')</div>';
+    };
+    window.onunhandledrejection = function (event) {
+      var debugDiv = document.getElementById('mobile-debug');
+      if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'mobile-debug';
+        debugDiv.style = 'position:fixed;bottom:0;left:0;right:0;background:rgba(255,165,0,0.9);color:black;padding:10px;font-size:10px;z-index:9999;word-break:break-all;max-height:150px;overflow:auto;';
+        document.body.appendChild(debugDiv);
+      }
+      debugDiv.innerHTML += '<div>REJECTION: ' + event.reason + '</div>';
+    };
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "CrossFit Tracker",
+  "short_name": "CF Tracker",
+  "description": "Premium CrossFit workout and PR tracker with AI WOD analysis.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#00ffff",
+  "icons": [
+    {
+      "src": "/icons/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

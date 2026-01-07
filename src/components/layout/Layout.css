@@ -1,0 +1,169 @@
+root {
+    --color-bg: #0a0a0f;
+    --color-neon: #00ffff;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.layout-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--color-bg);
+}
+
+.layout-main {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 2rem;
+}
+
+.layout-header {
+    padding: 1rem 2rem;
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    /* Align left usually for dashboards */
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-family: var(--font-heading);
+    color: var(--color-text);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-transform: none;
+    /* Merriweather looks good normal case */
+}
+
+@media (max-width: 600px) {
+    .header-top {
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        align-items: center;
+    }
+
+    .app-title {
+        font-size: 1.2rem;
+        text-align: center;
+    }
+
+    .header-nav {
+        width: 100%;
+        justify-content: space-around;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.5rem;
+        border-radius: 12px;
+    }
+
+    .header-nav-item {
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.6rem;
+        padding: 0.75rem 0.5rem;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .header-nav-item svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .layout-main {
+        padding-top: 100px;
+        /* Adjusted for taller mobile header */
+    }
+}
+
+/* Mobile Bottom Navigation */
+.mobile-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(20, 20, 25, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    height: 70px;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 0.65rem;
+    font-weight: 600;
+    flex: 1;
+    transition: all 0.2s ease;
+}
+
+.mobile-nav-item.active {
+    color: var(--color-neon);
+}
+
+.mobile-nav-item svg {
+    transition: transform 0.2s ease;
+}
+
+.mobile-nav-item.active svg {
+    transform: translateY(-2px);
+}
+
+@media (max-width: 600px) {
+    .header-nav {
+        display: none;
+        /* Hide top nav on mobile */
+    }
+
+    .header-top {
+        justify-content: center;
+        padding: 0.75rem;
+    }
+
+    .mobile-bottom-nav {
+        display: flex;
+    }
+
+    .layout-main {
+        padding-bottom: 80px;
+        /* Space for bottom nav */
+    }
+}
+
+.layout-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 1400px;
+    /* Max width for large screens */
+    margin: 0 auto;
+    padding-bottom: 90px;
+}

@@ -1,0 +1,22 @@
+/* Custom Utilities regarding Button.tsx usage if Tailwind is missing/partial */
+.bg-primary {
+    background-color: var(--color-primary) !important;
+    color: var(--color-primary-foreground) !important;
+    font-weight: 600;
+}
+
+.bg-primary:hover {
+    opacity: 0.9;
+}
+
+.text-primary-foreground {
+    color: var(--color-primary-foreground) !important;
+}
+
+/* Ensure default button overrides */
+button.primary,
+.btn-primary {
+    background: var(--color-primary) !important;
+    color: var(--color-primary-foreground) !important;
+    border-color: var(--color-primary) !important;
+}
