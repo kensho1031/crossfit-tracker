@@ -41,24 +41,29 @@ export function ImageUploader({ onUploadSuccess }: ImageUploaderProps) {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+        <div style={{ width: '100%' }}>
             <label
                 style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
+                    gap: '12px',
                     padding: '1rem',
-                    border: '2px dashed var(--color-border)',
+                    background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 255, 255, 0.05) 100%)',
+                    border: '2px solid var(--color-neon)',
+                    borderRadius: '12px',
                     cursor: 'pointer',
                     width: '100%',
                     boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: 'var(--color-text-muted)'
+                    color: 'var(--color-neon)',
+                    fontWeight: 700,
+                    boxShadow: '0 0 15px rgba(0, 255, 255, 0.2)',
+                    transition: 'all 0.3s ease',
+                    whiteSpace: 'nowrap'
                 }}
             >
-                {uploading ? <Loader2 className="spin" /> : <ImagePlus />}
-                <span>{uploading ? 'Uploading...' : 'Take Photo / Upload WOD'}</span>
+                {uploading ? <Loader2 className="spin" /> : <ImagePlus size={24} />}
+                <span style={{ fontSize: '1rem' }}>{uploading ? 'アップロード中...' : '写真を撮影 / アップロード'}</span>
                 <input
                     type="file"
                     accept="image/*"

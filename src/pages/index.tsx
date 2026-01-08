@@ -7,6 +7,8 @@ import { PRCards } from '../components/dashboard/PRCards';
 import { ScanWODButton } from '../components/dashboard/ScanWODButton';
 import { QuoteOfTheDay } from '../components/dashboard/QuoteOfTheDay';
 import { DraftLogsSection } from '../components/dashboard/DraftLogsSection';
+import { WeeklySummarySimple } from '../components/dashboard/WeeklySummarySimple';
+import { WeeklySummaryCompact } from '../components/dashboard/WeeklySummaryCompact';
 import { useSearchParams } from 'react-router-dom';
 
 export function Dashboard() {
@@ -38,36 +40,39 @@ export function Dashboard() {
             <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
             {/* Dashboard Content */}
-            {activeTab === 'overview' && (
-                <div style={{
-                    maxWidth: '1200px',
-                    margin: '0 auto',
-                    padding: '0 var(--spacing-md)'
-                }}>
-                    <DraftLogsSection />
-                    <ScanWODButton />
+            <div style={{
+                maxWidth: '1200px',
+                margin: '0 auto',
+                padding: '0 var(--spacing-sm)' // Use sm for mobile-first consistency
+            }}>
+                {activeTab === 'overview' && (
+                    <>
+                        <DraftLogsSection />
+                        <ScanWODButton />
+                        <WeeklySummarySimple onDetailClick={() => setActiveTab('calendar')} />
+                        <WeeklySummaryCompact />
+                        <PRCards />
+                        <QuoteOfTheDay />
+                    </>
+                )}
 
-                    <PRCards />
-                    <QuoteOfTheDay />
-                </div>
-            )}
+                {activeTab === 'stats' && (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+                        gap: '2rem',
+                        alignItems: 'start'
+                    }}>
+                        <BodyStatusCard />
+                        <WeightTrendChart />
+                    </div>
+                )}
 
-            {activeTab === 'stats' && (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-                    gap: '2rem',
-                    alignItems: 'start'
-                }}>
-                    <BodyStatusCard />
-                    <WeightTrendChart />
-                </div>
-            )}
+                {activeTab === 'log' && <WorkoutLog />}
 
-            {activeTab === 'log' && <WorkoutLog />}
-
-            {activeTab === 'calendar' && <WorkoutCalendar />}
-            {activeTab === 'tools' && <Tools />}
+                {activeTab === 'calendar' && <WorkoutCalendar />}
+                {activeTab === 'tools' && <Tools />}
+            </div>
         </div>
     );
 }

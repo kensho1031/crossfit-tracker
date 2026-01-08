@@ -3,14 +3,17 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { ChevronLeft, ChevronRight, Activity, Trash2 } from 'lucide-react';
+import { WeeklySummaryDetailed } from './WeeklySummaryDetailed';
 
 interface LogData {
     id: string;
     date: string;
-    memo: string;
+    raw_text: string;
     photoUrl: string | null;
+    source?: 'scan' | 'log';
+    type?: string;
 }
 
 export function WorkoutCalendar() {
@@ -22,8 +25,9 @@ export function WorkoutCalendar() {
         if (!user) return;
 
         const q = query(
-            collection(db, 'logs'),
-            where('uid', '==', user.uid)
+            collection(db, 'calendar_entries'),
+            where('uid', '==', user.uid),
+            where('type', '==', 'wod')
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -55,61 +59,99 @@ export function WorkoutCalendar() {
         return null;
     };
 
+    const handleDelete = async (logId: string) => {
+        if (!confirm('このWOD記録を削除しますか？')) return;
+        try {
+            await deleteDoc(doc(db, 'calendar_entries', logId));
+        } catch (error) {
+            console.error('削除エラー:', error);
+            alert('削除に失敗しました');
+        }
+    };
+
     // Find logs for selected date
     const localSelectedDate = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
     const selectedDateString = localSelectedDate.toISOString().split('T')[0];
     const dailyLogs = logs[selectedDateString] || [];
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-            <div className="calendar-container" style={{
-                background: 'var(--color-surface)',
-                borderRadius: 'var(--border-radius-lg)',
-                padding: '1.5rem',
-                boxShadow: 'var(--shadow-sm)'
-            }}>
-                <Calendar
-                    onChange={(val) => onChange(val as Date)}
-                    value={value}
-                    tileContent={tileContent}
-                    locale="ja-JP"
-                    prevLabel={<ChevronLeft size={24} />}
-                    nextLabel={<ChevronRight size={24} />}
-                    next2Label={null}
-                    prev2Label={null}
-                    formatDay={(_, date) => new Date(date).getDate().toString()}
-                    className="custom-calendar"
-                />
-            </div>
+        <>
+            <WeeklySummaryDetailed />
 
-            <div style={{
-                background: 'var(--color-surface)',
-                borderRadius: 'var(--border-radius-lg)',
-                padding: '2rem',
-                boxShadow: 'var(--shadow-sm)'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-                    <Activity size={20} color="var(--color-primary)" />
-                    <h3 style={{ fontSize: '1.2rem', margin: 0 }}>{selectedDateString} の記録</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                <div className="calendar-container" style={{
+                    background: 'var(--color-surface)',
+                    borderRadius: 'var(--border-radius-lg)',
+                    padding: '1.5rem',
+                    boxShadow: 'var(--shadow-sm)'
+                }}>
+                    <Calendar
+                        onChange={(val) => onChange(val as Date)}
+                        value={value}
+                        tileContent={tileContent}
+                        locale="ja-JP"
+                        prevLabel={<ChevronLeft size={24} />}
+                        nextLabel={<ChevronRight size={24} />}
+                        next2Label={null}
+                        prev2Label={null}
+                        formatDay={(_, date) => new Date(date).getDate().toString()}
+                        className="custom-calendar"
+                    />
                 </div>
 
-                {dailyLogs.length > 0 ? (
-                    <div style={{ display: 'grid', gap: '1rem' }}>
-                        {dailyLogs.map(log => (
-                            <div key={log.id} style={{ padding: '1rem', background: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                                {log.photoUrl && (
-                                    <img src={log.photoUrl} alt="WOD" style={{ width: '100%', borderRadius: '4px', marginBottom: '0.5rem' }} />
-                                )}
-                                <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', margin: 0 }}>{log.memo}</p>
-                            </div>
-                        ))}
+                <div style={{
+                    background: 'var(--color-surface)',
+                    borderRadius: 'var(--border-radius-lg)',
+                    padding: '2rem',
+                    boxShadow: 'var(--shadow-sm)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+                        <Activity size={20} color="var(--color-primary)" />
+                        <h3 style={{ fontSize: '1.2rem', margin: 0 }}>{selectedDateString} の記録</h3>
                     </div>
-                ) : (
-                    <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '2rem' }}>ワークアウトの記録はありません。</p>
-                )}
-            </div>
 
-            <style>{`
+                    {dailyLogs.length > 0 ? (
+                        <div style={{ display: 'grid', gap: '1rem' }}>
+                            {dailyLogs.map(log => (
+                                <div key={log.id} style={{
+                                    padding: '1rem',
+                                    background: 'var(--color-bg)',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--color-border)',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+                                        <button
+                                            onClick={() => handleDelete(log.id)}
+                                            style={{
+                                                background: 'rgba(255,0,0,0.1)',
+                                                border: '1px solid rgba(255,0,0,0.3)',
+                                                borderRadius: '6px',
+                                                color: '#ff6b6b',
+                                                cursor: 'pointer',
+                                                padding: '6px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                            title="削除"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    {log.photoUrl && (
+                                        <img src={log.photoUrl} alt="WOD" style={{ width: '100%', borderRadius: '4px', marginBottom: '0.5rem' }} />
+                                    )}
+                                    <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', margin: 0 }}>{log.raw_text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '2rem' }}>ワークアウトの記録はありません。</p>
+                    )}
+                </div>
+
+                <style>{`
                 .custom-calendar {
                     width: 100% !important;
                     border: none !important;
@@ -191,7 +233,13 @@ export function WorkoutCalendar() {
                 
                 .react-calendar__navigation button {
                     color: var(--color-text);
-                    font-size: 1.5rem; /* Larger nav icons */
+                    font-size: 1.1rem; /* Smaller nav icons */
+                }
+
+                .react-calendar__navigation__label {
+                    font-size: 0.85rem !important;
+                    font-weight: 700 !important;
+                    color: var(--color-text) !important;
                 }
                 
                 .react-calendar__navigation button:enabled:hover,
@@ -201,14 +249,15 @@ export function WorkoutCalendar() {
                 }
                 
                 .react-calendar__tile {
-                    padding: 1.25rem 0.5rem !important; /* Larger touch target */
+                    padding: 1rem 0.25rem !important; /* Larger touch target */
                     display: flex;
                     flex-direction: column;
                     justify-content: flex-start;
                     align-items: center;
-                    height: 80px; /* Fixed height for consistency */
+                    aspect-ratio: 1 / 1;
                 }
             `}</style>
-        </div>
+            </div>
+        </>
     );
 }

@@ -5,15 +5,20 @@ import { collection, addDoc, deleteDoc, updateDoc, doc, serverTimestamp, query, 
 import { ImageUploader } from '../components/log/ImageUploader';
 import { Save, Calendar, AlertCircle, History, Edit, Trash2, X } from 'lucide-react';
 
+import { getCategoriesByExercises } from '../utils/workoutUtils';
+
 interface LogData {
     id: string;
     date: string;
-    memo: string;
+    raw_text: string;
     photoUrl: string | null;
     rpe: number;
     condition: string;
     issues?: string;
     improvements?: string;
+    source: 'scan' | 'log';
+    exercises: string[];
+    categories: string[];
 }
 
 export function WorkoutLog() {
@@ -41,10 +46,11 @@ export function WorkoutLog() {
     useEffect(() => {
         if (!user) return;
 
-        // Subscribe to last 5 logs
+        // Subscribe to last 5 logs from calendar_entries
         const q = query(
-            collection(db, 'logs'),
+            collection(db, 'calendar_entries'),
             where('uid', '==', user.uid),
+            where('type', '==', 'wod'),
             orderBy('createdAt', 'desc'),
             limit(5)
         );
@@ -73,30 +79,39 @@ export function WorkoutLog() {
 
         setLoading(true);
         try {
+            const exercises = ["other"]; // Default for manual log
+            const categories = getCategoriesByExercises(exercises);
+
             const logData = {
                 uid: user.uid,
+                type: 'wod',
+                source: 'log',
                 date,
                 photoUrl,
-                memo,
+                raw_text: memo, // Map memo to raw_text
                 issues,
                 improvements,
                 rpe,
                 condition,
+                exercises,
+                categories,
                 updatedAt: serverTimestamp()
             };
 
             if (editingId) {
                 // Update existing log
-                await updateDoc(doc(db, 'logs', editingId), logData);
+                await updateDoc(doc(db, 'calendar_entries', editingId), logData);
                 alert("記録を更新しました！");
             } else {
                 // Create new log
-                await addDoc(collection(db, 'logs'), {
+                await addDoc(collection(db, 'calendar_entries'), {
                     ...logData,
                     createdAt: serverTimestamp()
                 });
                 alert("ワークアウトを記録しました！お疲れ様でした！");
             }
+
+            // Reset Form...
 
             // Reset Form
             setEditingId(null);
@@ -117,7 +132,7 @@ export function WorkoutLog() {
     const handleDelete = async (id: string) => {
         if (!window.confirm("このログを削除してもよろしいですか？")) return;
         try {
-            await deleteDoc(doc(db, 'logs', id));
+            await deleteDoc(doc(db, 'calendar_entries', id));
         } catch (error) {
             console.error("Error deleting log:", error);
             alert("削除に失敗しました。");
@@ -127,7 +142,7 @@ export function WorkoutLog() {
     const handleEdit = (log: LogData) => {
         setEditingId(log.id);
         setDate(log.date);
-        setMemo(log.memo || '');
+        setMemo(log.raw_text || '');
         setIssues(log.issues || '');
         setImprovements(log.improvements || '');
         setRpe(log.rpe || 3);
@@ -147,7 +162,7 @@ export function WorkoutLog() {
     };
 
     return (
-        <div style={{ paddingBottom: '2rem' }}>
+        <div style={{ paddingBottom: '4rem' }}>
             <h2 style={{ textAlign: 'center', marginBottom: '2rem', fontFamily: 'var(--font-heading)' }}>
                 {editingId ? 'Edit Log' : 'Workout Log'}
             </h2>
@@ -472,9 +487,9 @@ export function WorkoutLog() {
                                             {log.improvements}
                                         </div>
                                     )}
-                                    {log.memo && (
+                                    {log.raw_text && (
                                         <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', margin: 0, color: 'var(--color-text-muted)' }}>
-                                            {log.memo}
+                                            {log.raw_text}
                                         </p>
                                     )}
                                 </div>

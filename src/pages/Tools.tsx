@@ -5,7 +5,7 @@ import { Dumbbell } from 'lucide-react';
 
 export function Tools() {
     return (
-        <div style={{ paddingBottom: '4rem', maxWidth: '800px', margin: '0 auto', paddingLeft: '1rem', paddingRight: '1rem' }}>
+        <div style={{ paddingBottom: '4rem', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{
                 textAlign: 'center',
                 marginBottom: '2.5rem',

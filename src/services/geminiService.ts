@@ -78,6 +78,41 @@ export async function analyzeWODImage(imageUrl: string): Promise<AnalyzedWOD> {
     }
 }
 
+
+export async function generateWeeklyComment(stats: {
+    workoutCount: number;
+    prCount: number;
+    categories: string[];
+    sourceRatio: { scan: number; log: number };
+}): Promise<string> {
+    try {
+        const logRatio = stats.sourceRatio.log / (stats.sourceRatio.scan + stats.sourceRatio.log || 1);
+        let warning = "";
+        if (logRatio > 0.7) {
+            warning = "【注意】今週は手動入力（LOG）が多いようです。AIスキャン（SCAN WOD）を活用すると、より詳細なメニュー分析が可能になります。";
+        }
+
+        const prompt = `
+            CrossFitの週間トレーニング記録に基づき、ユーザーのモチベーションを高める短いアドバイスを1〜2文で生成してください。
+            日本語で、力強く前向きなトーンでお願いします。
+            【重要】プレーンテキストのみで回答し、引用（>）や箇条書き（-）などのマークダウン記法は一切使用しないでください。
+
+            今週のデータ:
+            - ワークアウト回数: ${stats.workoutCount}回
+            - PR更新数: ${stats.prCount}回
+            - 主なカテゴリ: ${stats.categories.join(', ')}
+            
+            以前の注意メッセージがあれば考慮してください: ${warning}
+        `;
+
+        const result = await model.generateContent(prompt);
+        return result.response.text().trim();
+    } catch (error) {
+        console.error('Error generating weekly comment:', error);
+        return "ナイスワーク！来週も限界を超えていきましょう！";
+    }
+}
+
 async function getBase64FromUrl(url: string): Promise<string> {
     const response = await fetch(url);
     const blob = await response.blob();

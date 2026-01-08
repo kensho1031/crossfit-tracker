@@ -71,24 +71,27 @@ export function WODAnalysisFlow({ onComplete, onCancel }: WODAnalysisFlowProps) 
                     </div>
                 )}
 
-                <ImageUploader onUploadSuccess={handleUploadSuccess} />
-
-                <button
-                    onClick={onCancel}
-                    style={{
-                        width: '100%',
-                        marginTop: 'var(--spacing-md)',
-                        background: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        color: 'var(--color-text-muted)',
-                        padding: '0.75rem',
-                        borderRadius: 'var(--border-radius)',
-                        cursor: 'pointer',
-                        fontFamily: 'var(--font-body)'
-                    }}
-                >
-                    キャンセル
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: 'var(--spacing-md)' }}>
+                    <ImageUploader onUploadSuccess={handleUploadSuccess} />
+                    <button
+                        onClick={onCancel}
+                        style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-text)',
+                            padding: '1rem',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            fontFamily: 'var(--font-body)',
+                            fontSize: '1rem',
+                            fontWeight: 600,
+                            transition: 'all 0.3s ease'
+                        }}
+                    >
+                        キャンセル
+                    </button>
+                </div>
             </div>
         );
     }
@@ -217,7 +220,7 @@ export function WODAnalysisFlow({ onComplete, onCancel }: WODAnalysisFlowProps) 
                     </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-lg)' }}>
+                <div style={{ display: 'flex', gap: '12px', marginTop: 'var(--spacing-lg)' }}>
                     <button
                         onClick={handleSaveDraft}
                         className="primary"
@@ -226,7 +229,8 @@ export function WODAnalysisFlow({ onComplete, onCancel }: WODAnalysisFlowProps) 
                             padding: '1rem',
                             fontSize: '1rem',
                             fontWeight: 700,
-                            fontFamily: 'var(--font-body)'
+                            fontFamily: 'var(--font-body)',
+                            borderRadius: '12px'
                         }}
                     >
                         {analyzedData.manualModeRecommended ? '手動で詳しく入力する' : '下書きとして保存'}
@@ -236,12 +240,14 @@ export function WODAnalysisFlow({ onComplete, onCancel }: WODAnalysisFlowProps) 
                         style={{
                             flex: 1,
                             padding: '1rem',
-                            background: 'transparent',
+                            background: 'rgba(255,255,255,0.05)',
                             border: '1px solid var(--color-border)',
-                            color: 'var(--color-text-muted)',
-                            borderRadius: 'var(--border-radius)',
+                            color: 'var(--color-text)',
+                            borderRadius: '12px',
                             cursor: 'pointer',
-                            fontFamily: 'var(--font-body)'
+                            fontFamily: 'var(--font-body)',
+                            fontSize: '0.9rem',
+                            fontWeight: 600
                         }}
                     >
                         撮り直す

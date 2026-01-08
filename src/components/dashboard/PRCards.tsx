@@ -229,6 +229,74 @@ export function PRCards() {
 
     return (
         <div style={{ marginBottom: '3rem' }}>
+            <style>{`
+                .pr-grid-container {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .pr-card {
+                    background: linear-gradient(135deg, #1e1e24 0%, #181820 100%);
+                    border-radius: var(--border-radius-lg);
+                    padding: 1.25rem;
+                    padding-left: 1.5rem;
+                    display: flex;
+                    flex-direction: column;
+                    cursor: grab;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .pr-value-large {
+                    font-size: 2.5rem;
+                    font-weight: 800;
+                    line-height: 1;
+                }
+
+                .pr-name {
+                    font-size: 0.95rem;
+                }
+
+                .pr-unit {
+                    font-size: 1rem;
+                }
+                
+                /* Mobile Optimizations */
+                @media (max-width: 600px) {
+                    .pr-grid-container {
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 0.5rem;
+                    }
+
+                    .pr-card {
+                        padding: 0.75rem; /* Compact padding */
+                        padding-left: 0.75rem;
+                        border-radius: 12px;
+                    }
+                    
+                    .pr-value-large {
+                        font-size: 1.6rem; /* Smaller font */
+                    }
+                    
+                    .pr-name {
+                        font-size: 0.7rem; /* Smaller name */
+                        max-width: 100%;
+                    }
+
+                    .pr-unit {
+                        font-size: 0.75rem;
+                    }
+
+                    /* Adjust header layout for space */
+                    .pr-card-header {
+                        margin-bottom: 0.25rem !important;
+                    }
+                }
+            `}</style>
+
             {/* Header / Controls */}
             <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -289,12 +357,7 @@ export function PRCards() {
             </div>
 
             {/* Top Grid (Max 8) */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '1rem',
-                marginBottom: '1rem'
-            }}>
+            <div className="pr-grid-container">
                 {topItems.map((pr, idx) => {
                     const master = EXERCISE_MASTER_DATA.find(e => e.id === pr.exerciseId);
                     const category = master?.category || 'weightlifting';
@@ -306,72 +369,53 @@ export function PRCards() {
                     return (
                         <div
                             key={pr.id}
+                            className="pr-card"
                             onClick={() => handleCardClick(pr)}
                             style={{
-                                background: 'linear-gradient(135deg, #1e1e24 0%, #181820 100%)',
-                                borderRadius: 'var(--border-radius-lg)',
-                                padding: '1.25rem',
-                                paddingLeft: '1.5rem',
                                 border: pr.isProjected ? '1px dashed rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.05)',
                                 borderLeft: pr.isProjected ? '3px dashed rgba(255, 255, 255, 0.1)' : `3px solid ${pr.color}40`,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                cursor: 'grab',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
                                 boxShadow: pr.isProjected ? '0 4px 20px rgba(0,0,0,0.1)' : `0 4px 20px rgba(0,0,0,0.2), 0 0 10px ${pr.color}10`,
                                 opacity: pr.isProjected ? 0.8 : 1,
-                                overflow: 'hidden'
                             }}
                             draggable
                             onDragStart={() => handleDragStart(idx)}
                             onDragOver={handleDragOver}
                             onDrop={() => handleDrop(idx)}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-4px)';
-                                e.currentTarget.style.boxShadow = `0 12px 40px rgba(0,0,0,0.4), 0 0 25px ${pr.color}25`;
-                                e.currentTarget.style.border = `1px solid ${pr.color}40`;
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = pr.isProjected ? '0 4px 20px rgba(0,0,0,0.1)' : `0 4px 20px rgba(0,0,0,0.2), 0 0 10px ${pr.color}10`;
-                                e.currentTarget.style.border = pr.isProjected ? '1px dashed rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.05)';
-                            }}
                         >
                             {/* Header: Name + Favorite */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
-                                <div style={{
-                                    fontSize: '0.95rem', fontWeight: 600,
+                            <div className="pr-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
+                                <div className="pr-name" style={{
+                                    fontWeight: 600,
                                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                                     color: '#aaa',
                                     textTransform: 'uppercase', letterSpacing: '0.5px',
-                                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: '85%'
+                                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                                    flex: 1 // Allow name to take available space
                                 }}>
                                     {pr.exerciseName}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {!pr.isProjected && <CatIcon size={14} style={{ color: pr.color, opacity: 0.8 }} />}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '4px' }}>
+                                    {!pr.isProjected && <CatIcon size={12} style={{ color: pr.color, opacity: 0.8 }} />}
                                     <button
                                         onClick={(e) => toggleFavorite(e, pr.exerciseId)}
                                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '0px', display: 'flex' }}
                                     >
-                                        <Star size={18} className={favorites.has(pr.exerciseId) ? "text-yellow-500" : "text-gray-600"} fill={favorites.has(pr.exerciseId) ? "currentColor" : "none"} />
+                                        <Star size={14} className={favorites.has(pr.exerciseId) ? "text-yellow-500" : "text-gray-600"} fill={favorites.has(pr.exerciseId) ? "currentColor" : "none"} />
                                     </button>
                                 </div>
                             </div>
 
                             {/* Value - Center Aligned */}
-                            <div style={{ marginBottom: '0.75rem', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ marginBottom: '0.5rem', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {pr.isProjected ? (
-                                    <div style={{ fontSize: '1.8rem', color: '#555', fontWeight: 700 }}>--</div>
+                                    <div style={{ fontSize: '1.5rem', color: '#555', fontWeight: 700 }}>--</div>
                                 ) : (
-                                    <div style={{
-                                        fontSize: '2.5rem', fontWeight: 800, lineHeight: 1,
+                                    <div className="pr-value-large" style={{
                                         textShadow: `0 0 15px ${pr.color}40`,
                                         position: 'relative',
                                         paddingBottom: '4px'
                                     }}>
-                                        {formatValue(pr.value, pr.unit)} <span style={{ fontSize: '1rem', fontWeight: 400, color: '#888' }}>{getUnitLabel(pr.unit)}</span>
+                                        {formatValue(pr.value, pr.unit)} <span className="pr-unit" style={{ fontWeight: 400, color: '#888' }}>{getUnitLabel(pr.unit)}</span>
                                         <div style={{
                                             position: 'absolute', bottom: 0, left: '5%', right: '5%',
                                             height: '1px', background: `linear-gradient(90deg, transparent, ${pr.color}80, transparent)`
@@ -380,10 +424,8 @@ export function PRCards() {
                                 )}
                             </div>
 
-
-
-                            <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '0.5rem', textAlign: 'right' }}>
-                                {pr.isProjected ? 'タップして記録' : new Date(pr.date).toLocaleDateString()}
+                            <div style={{ fontSize: '0.65rem', color: '#555', marginTop: 'auto', textAlign: 'right' }}>
+                                {pr.isProjected ? '未記録' : new Date(pr.date).toLocaleDateString()}
                             </div>
                         </div>
                     )
