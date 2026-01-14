@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ユーザードキュメント
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /history/{historyId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // ワークアウトログ
+    match /logs/{logId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+
+    // カレンダーエントリー (統合データ構造)
+    match /calendar_entries/{entryId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+    
+    // 未完了ログ（Draft Logs）
+    match /draftLogs/{draftId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+
+    // 種目 (Movements)
+    match /movements/{movementId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Allow creation for seeding defaults & custom
+      allow update, delete: if request.auth != null && (
+        resource.data.uid == request.auth.uid || resource.data.isDefault == true
+      );
+    }
+
+    // Personal Records (Simplified for debugging)
+    match /prs/{prId} {
+        allow read, write: if request.auth != null;
+    }
+
+    // Analysis Logs (AI confidence tracking)
+    match /analysisLogs/{logId} {
+        allow create: if request.auth != null;
+        allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+    }
+
+    // Daily Classes (Admin managed, public read)
+    match /classes/{classId} {
+        allow read: if true; // Publicly readable
+        allow write: if request.auth != null; // Authenticated users can write (temporarily for development)
+    }
+  }
+}
