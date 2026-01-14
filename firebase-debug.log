@@ -1,0 +1,37 @@
+[debug] [2026-01-14T05:37:31.333Z] ----------------------------------------------------------------------
+[debug] [2026-01-14T05:37:31.335Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\kieee\.gemini\antigravity\playground\tensor-triangulum\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-01-14T05:37:31.335Z] CLI Version:   15.2.1
+[debug] [2026-01-14T05:37:31.335Z] Platform:      win32
+[debug] [2026-01-14T05:37:31.336Z] Node Version:  v24.12.0
+[debug] [2026-01-14T05:37:31.336Z] Time:          Wed Jan 14 2026 14:37:31 GMT+0900 (日本標準時)
+[debug] [2026-01-14T05:37:31.336Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-14T05:37:33.981Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-14T05:37:33.981Z] > authorizing via signed-in user (kikunouki@gmail.com)
+[debug] [2026-01-14T05:37:33.981Z] [iam] checking project crossfit-tracker-48563 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-01-14T05:37:33.982Z] Checked if tokens are valid: false, expires at: 1768361212214
+[debug] [2026-01-14T05:37:33.983Z] Checked if tokens are valid: false, expires at: 1768361212214
+[debug] [2026-01-14T05:37:33.983Z] > refreshing access token with scopes: []
+[debug] [2026-01-14T05:37:33.985Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-01-14T05:37:33.985Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-01-14T05:37:34.171Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-01-14T05:37:34.171Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-01-14T05:37:34.178Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/crossfit-tracker-48563:testIamPermissions [none]
+[debug] [2026-01-14T05:37:34.178Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/crossfit-tracker-48563:testIamPermissions x-goog-quota-user=projects/crossfit-tracker-48563
+[debug] [2026-01-14T05:37:34.178Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crossfit-tracker-48563:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-01-14T05:37:34.439Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/crossfit-tracker-48563:testIamPermissions 200
+[debug] [2026-01-14T05:37:34.439Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crossfit-tracker-48563:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-01-14T05:37:34.440Z] Checked if tokens are valid: true, expires at: 1768372653171
+[debug] [2026-01-14T05:37:34.440Z] Checked if tokens are valid: true, expires at: 1768372653171
+[debug] [2026-01-14T05:37:34.440Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/crossfit-tracker-48563 [none]
+[debug] [2026-01-14T05:37:34.853Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/crossfit-tracker-48563 200
+[debug] [2026-01-14T05:37:34.853Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/crossfit-tracker-48563 {"projectId":"crossfit-tracker-48563","projectNumber":"515310460270","displayName":"CrossFit Tracker","name":"projects/crossfit-tracker-48563","resources":{"hostingSite":"crossfit-tracker-48563"},"state":"ACTIVE","etag":"1_a4ca3e27-7f8b-41df-8b1d-5a0f7012620b"}
+[info] 
+[info] === Deploying to 'crossfit-tracker-48563'...
+[info] 
+[info] i  deploying firestore, hosting 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-01-14T05:37:34.857Z] Checked if tokens are valid: true, expires at: 1768372653171
+[debug] [2026-01-14T05:37:34.857Z] Checked if tokens are valid: true, expires at: 1768372653171
+[debug] [2026-01-14T05:37:34.857Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/crossfit-tracker-48563/databases/(default) [none]

@@ -1,6 +1,7 @@
-import { getFirestore, doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import type { UserProfile, UserRole } from '../types/user';
+import { INITIAL_STATS } from '../types/user';
 
 const db = getFirestore();
 const auth = getAuth();
@@ -21,11 +22,13 @@ export async function syncUserProfile(): Promise<UserProfile | null> {
     } else {
         // Create new user profile with default 'member' role
         const newProfile: UserProfile = {
+            ...INITIAL_STATS,
             uid: user.uid,
             email: user.email || '',
             displayName: user.displayName || 'Member',
             role: 'member',
-            createdAt: serverTimestamp()
+            createdAt: new Date().toISOString(),
+            currentMonth: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7)
         };
         await setDoc(userRef, newProfile);
         return newProfile;

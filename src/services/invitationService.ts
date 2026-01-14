@@ -99,7 +99,7 @@ export async function findPendingInvitationByEmail(email: string): Promise<Invit
  * Accept invitation
  * This should be called when usage is confirmed (e.g. successful login)
  */
-export async function acceptInvitation(invitationId: string, userId: string): Promise<void> {
+export async function acceptInvitation(invitationId: string, _userId: string): Promise<void> {
     const invRef = doc(db, INVITATION_COLLECTION, invitationId);
 
     // 1. Mark invitation as used
