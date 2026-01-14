@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'coach' | 'member';
+export type UserRole = 'admin' | 'coach' | 'member' | 'visitor';
 
 export interface UserStats {
     uid: string;
@@ -6,6 +6,8 @@ export interface UserStats {
     displayName: string;
     photoURL?: string;
     role: UserRole;
+    boxId: string | null; // null means "Personal Mode" (no box)
+    visitorExpiresAt?: string | null; // ISO date string for visitors
     createdAt: string;
     currentMonth: string;
 
@@ -21,6 +23,8 @@ export interface UserStats {
 
 export const INITIAL_STATS: Omit<UserStats, 'uid' | 'email' | 'displayName' | 'createdAt' | 'currentMonth'> = {
     role: 'member',
+    boxId: null,
+    visitorExpiresAt: null,
     bodyWeight: 0,
     maxWeights: {
         sq: 0,

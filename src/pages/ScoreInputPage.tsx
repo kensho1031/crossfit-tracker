@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Activity, Dumbbell, History, ChevronDown, ChevronUp } 
 import { getDailyClass } from '../services/classService';
 import { saveScore, getUserHistory } from '../services/scoreService';
 import { useAuth } from '../contexts/AuthContext';
+import { useRole } from '../hooks/useRole';
 import type { DailyClass } from '../types/class';
 
 // Extended state for score inputs
@@ -23,6 +24,7 @@ export function ScoreInputPage() {
     const { date } = useParams<{ date: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { boxId } = useRole();
 
     const [dailyClass, setDailyClass] = useState<DailyClass | null>(null);
     const [loading, setLoading] = useState(true);
@@ -39,9 +41,9 @@ export function ScoreInputPage() {
 
     useEffect(() => {
         const loadClass = async () => {
-            if (!date || !user) return;
+            if (!date || !user || !boxId) return;
             try {
-                const data = await getDailyClass(date);
+                const data = await getDailyClass(date, boxId);
                 setDailyClass(data);
 
                 // Initialize state and fetch history
@@ -83,7 +85,7 @@ export function ScoreInputPage() {
             }
         };
         loadClass();
-    }, [date, user]);
+    }, [date, user, boxId]);
 
     const toggleSection = (sectionId: string) => {
         setCollapsedMap(prev => ({
@@ -159,7 +161,7 @@ export function ScoreInputPage() {
                     note: scoreData.note,
                     title: section.title,
                     wodName: section.wodName || section.title
-                });
+                }, boxId);
             });
 
             await Promise.all(savePromises);

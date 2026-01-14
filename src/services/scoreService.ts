@@ -22,15 +22,26 @@ export interface ScoreData {
     wodName?: string; // standardized name for querying
 }
 
-export const saveScore = async (data: ScoreData) => {
+/**
+ * Save a score to both class leaderboard and user history.
+ * If boxId is provided, stores under boxes/{boxId}/classes/{classId}/scores
+ * Otherwise uses legacy path daily_classes/{classId}/scores
+ */
+export const saveScore = async (data: ScoreData, boxId?: string | null) => {
     const user = auth.currentUser;
     if (!user) throw new Error("Must be logged in to save score");
 
     const timestamp = serverTimestamp();
 
     // 1. Save to Class Leaderboard
-    // Path: daily_classes/{classId}/scores/{userId}
-    const classScoreRef = doc(db, 'daily_classes', data.classId, 'scores', user.uid);
+    let classScoreRef;
+    if (boxId) {
+        classScoreRef = doc(db, 'boxes', boxId, 'classes', data.classId, 'scores', user.uid);
+    } else {
+        // Legacy path
+        classScoreRef = doc(db, 'daily_classes', data.classId, 'scores', user.uid);
+    }
+
     const scoreDoc = {
         userId: user.uid,
         userName: user.displayName || 'Unknown Athlete',
@@ -46,7 +57,6 @@ export const saveScore = async (data: ScoreData) => {
     // 2. Save to User History (if searchable title/wodName is provided)
     // Path: users/{userId}/history/{autoId}
     if (data.title || data.wodName) {
-        // ID: `${classId}_${wodName || title}` (sanitized)
         const safeName = (data.wodName || data.title || 'unknown').replace(/[^a-zA-Z0-9]/g, '_');
         const historyId = `${data.classId}_${safeName}`;
         const userHistoryRef = doc(db, 'users', user.uid, 'history', historyId);
@@ -67,9 +77,19 @@ export const saveScore = async (data: ScoreData) => {
     return scoreDoc;
 };
 
-export const getScores = async (classId: string) => {
-    // Path: daily_classes/{date}/scores
-    const scoresRef = collection(db, 'daily_classes', classId, 'scores');
+/**
+ * Get all scores for a specific class.
+ * If boxId is provided, fetches from boxes/{boxId}/classes/{classId}/scores
+ */
+export const getScores = async (classId: string, boxId?: string | null) => {
+    let scoresRef;
+    if (boxId) {
+        scoresRef = collection(db, 'boxes', boxId, 'classes', classId, 'scores');
+    } else {
+        // Legacy path
+        scoresRef = collection(db, 'daily_classes', classId, 'scores');
+    }
+
     const q = query(scoresRef);
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
@@ -78,6 +98,10 @@ export const getScores = async (classId: string) => {
     } as any));
 };
 
+/**
+ * Get user's history for a specific WOD name.
+ * User history is stored per-user, not per-box.
+ */
 export const getUserHistory = async (userId: string, wodName: string) => {
     if (!userId || !wodName) return [];
 
@@ -89,7 +113,6 @@ export const getUserHistory = async (userId: string, wodName: string) => {
         orderBy('timestamp', 'desc'),
         limit(5)
     );
-    // Note: Creating index might be required for where+orderBy
 
     try {
         const snapshot = await getDocs(q);

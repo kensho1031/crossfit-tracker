@@ -1,27 +1,39 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { checkInToClass } from '../services/attendanceService';
+import { getDailyClass } from '../services/classService';
+import { useRole } from '../hooks/useRole';
 
 export function CheckInHandler() {
-    const { classId } = useParams();
     const navigate = useNavigate();
+    const { boxId } = useRole();
     const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
     const [message, setMessage] = useState('チェックイン中...');
 
     useEffect(() => {
         const performCheckIn = async () => {
-            if (!classId) {
+            if (!boxId) {
                 setStatus('error');
-                setMessage('無効なQRコードです');
+                setMessage('BOXに所属していないため、チェックインできません。');
                 return;
             }
 
             try {
+                // Get today's class
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todayClass = await getDailyClass(todayStr, boxId);
+
+                if (!todayClass) {
+                    setStatus('error');
+                    setMessage('本日のクラスが見つかりません');
+                    return;
+                }
+
                 // Minimum delay for UX (to show processing state)
                 await new Promise(resolve => setTimeout(resolve, 800));
 
-                await checkInToClass(classId);
+                await checkInToClass(todayClass.id, boxId);
 
                 setStatus('success');
                 setMessage('チェックイン完了！');
@@ -39,7 +51,7 @@ export function CheckInHandler() {
         };
 
         performCheckIn();
-    }, [classId, navigate]);
+    }, [navigate, boxId]);
 
     return (
         <div style={{

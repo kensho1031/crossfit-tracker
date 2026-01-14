@@ -4,10 +4,12 @@ import { ArrowLeft, Save, Calendar, Trash2, Dumbbell, Flame, Timer, Zap, Plus } 
 import { saveDailyClass, getDailyClass } from '../../services/classService';
 import type { DailyClass, ClassSection, SectionType, ScoreType } from '../../types/class';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRole } from '../../hooks/useRole';
 import { WOD_PRESETS } from '../../constants/wods';
 
 export function AdminTodayManager() {
     const navigate = useNavigate();
+    const { canManageClasses, loading: roleLoading, boxId } = useRole();
     const today = new Date().toISOString().split('T')[0];
     const { user: authUser } = useAuth(); // Get actual user from context
     const [selectedDate, setSelectedDate] = useState(today);
@@ -35,20 +37,27 @@ export function AdminTodayManager() {
     ];
 
     useEffect(() => {
-        loadClassData(selectedDate);
-    }, [selectedDate]);
+        if (!roleLoading && !canManageClasses) {
+            navigate('/');
+            return;
+        }
+        if (!roleLoading && boxId) {
+            loadClassData(selectedDate);
+        }
+    }, [selectedDate, canManageClasses, roleLoading, navigate, boxId]);
 
     const loadClassData = async (date: string) => {
         setLoading(true);
         setMessage(''); // Clear previous messages
         try {
-            console.log('Fetching class for date:', date);
-            const data = await getDailyClass(date);
+            console.log('Fetching class for date:', date, 'Box:', boxId);
+            const data = await getDailyClass(date, boxId);
             if (data) {
                 setTitle(data.title || '');
                 if (data.sections && data.sections.length > 0) {
                     setSections(data.sections);
                 } else if (data.warmup || data.strength || data.wod) {
+                    // Migration logic for old format
                     const migrated: ClassSection[] = [];
                     if (data.warmup) migrated.push({ ...data.warmup, id: 'migrated-warmup', type: 'warmup', title: 'Warm-up' });
                     if (data.strength) migrated.push({ ...data.strength, id: 'migrated-strength', type: 'strength' });
@@ -77,7 +86,7 @@ export function AdminTodayManager() {
         setLoading(true);
         setMessage('');
         try {
-            console.log('Saving class data:', { id: selectedDate, sections });
+            console.log('Saving class data:', { id: selectedDate, sections, boxId });
             const classData: DailyClass = {
                 id: selectedDate,
                 date: selectedDate,
@@ -92,12 +101,11 @@ export function AdminTodayManager() {
                 updatedAt: {} as any
             };
 
-            await saveDailyClass(classData);
+            await saveDailyClass(classData, boxId);
             setMessage('保存しました！');
             setTimeout(() => setMessage(''), 3000);
         } catch (error: any) {
             console.error('Error saving class:', error);
-            // Get current user info for debugging
             const userStatus = authUser ? `(UID: ${authUser.uid.substring(0, 5)}...)` : '(Not logged in)';
             setMessage(`保存失敗: ${error?.message || '不明なエラー'} ${userStatus}`);
         } finally {
@@ -165,7 +173,6 @@ export function AdminTodayManager() {
             content: preset.menu,
             scoreType: preset.scoreType as ScoreType,
             category: presetCategory,
-            // default sets can remain undefined or user sets manually
         });
         setShowPresetModal(false);
         setActiveSectionId(null);
@@ -183,9 +190,9 @@ export function AdminTodayManager() {
                 /* Base Reset */
                 .admin-manager-container {
                     width: 100%;
-                    max-width: 100vw;
-                    margin: 0;
-                    padding: 1.5rem 12px 6rem 12px;
+                    max-width: 900px;
+                    margin: 0 auto;
+                    padding: 1.5rem 1.5rem 6rem 1.5rem;
                     box-sizing: border-box;
                     overflow-x: hidden;
                 }
@@ -427,75 +434,63 @@ export function AdminTodayManager() {
                         borderLeftWidth: '5px'
                     }}>
                         {/* Section Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: getSectionColor(section.type) }}>
-                                {getSectionIcon(section.type)}
-                                <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.2rem', textTransform: 'uppercase' }}>
-                                    {section.title || section.type}
-                                </h3>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: getSectionColor(section.type) }}>
+                                    {getSectionIcon(section.type)}
+                                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', textTransform: 'uppercase' }}>
+                                        {section.title || section.type}
+                                    </h3>
+                                </div>
                                 {(section.type === 'wod' || section.type === 'strength') && (
                                     <button
                                         type="button"
                                         onClick={() => openPresetModal(section.id)}
-                                        style={{ background: 'var(--color-surface-light)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', color: 'var(--color-primary)', cursor: 'pointer' }}
+                                        style={{
+                                            background: 'rgba(255,215,0,0.1)',
+                                            border: '1px solid var(--color-primary)',
+                                            borderRadius: '6px',
+                                            padding: '6px 12px',
+                                            fontSize: '0.75rem',
+                                            color: 'var(--color-primary)',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            transition: 'all 0.2s'
+                                        }}
                                     >
-                                        Load Preset
+                                        📋 PRESET
                                     </button>
                                 )}
-                                <button
-                                    onClick={() => removeSection(section.id)}
-                                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '6px' }}
-                                    title="Remove Section"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
                             </div>
+                            <button
+                                onClick={() => removeSection(section.id)}
+                                style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '6px' }}
+                                title="Remove Section"
+                            >
+                                <Trash2 size={18} />
+                            </button>
                         </div>
 
-                        {/* Title Input */}
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>
-                                Title <span style={{ opacity: 0.5, fontWeight: 'normal' }}>(Optional)</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={section.title || ''}
-                                onChange={(e) => updateSection(section.id, { title: e.target.value })}
-                                style={{
-                                    padding: '0.7rem', fontSize: '1rem',
-                                    borderRadius: '8px', border: '1px solid var(--color-border)',
-                                    background: 'var(--color-bg)', color: 'var(--color-text)'
-                                }}
-                            />
-                        </div>
-
-                        {/* Score Type & Sets Row */}
+                        {/* Title Input - Compact */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>
-                                    Score Type
+                                <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>
+                                    WOD Name <span style={{ opacity: 0.5, fontWeight: 'normal' }}>(Optional)</span>
                                 </label>
-                                <select
-                                    value={section.scoreType || 'none'}
-                                    onChange={(e) => updateSection(section.id, { scoreType: e.target.value as ScoreType })}
+                                <input
+                                    type="text"
+                                    value={section.title || ''}
+                                    onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                                    placeholder="e.g. Fran, Murph"
                                     style={{
-                                        padding: '0.7rem', fontSize: '1rem',
+                                        padding: '0.65rem', fontSize: '0.95rem',
                                         borderRadius: '8px', border: '1px solid var(--color-border)',
                                         background: 'var(--color-bg)', color: 'var(--color-text)'
                                     }}
-                                >
-                                    <option value="none">None</option>
-                                    <option value="time">Time</option>
-                                    <option value="rounds_reps">Rounds + Reps</option>
-                                    <option value="reps">Total Reps</option>
-                                    <option value="weight">Weight (KG/LB)</option>
-                                    <option value="points">Points</option>
-                                </select>
+                                />
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>
+                                <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>
                                     Sets <span style={{ opacity: 0.5, fontWeight: 'normal' }}>(Strength)</span>
                                 </label>
                                 <input
@@ -504,12 +499,35 @@ export function AdminTodayManager() {
                                     value={section.sets || ''}
                                     onChange={(e) => updateSection(section.id, { sets: parseInt(e.target.value) || undefined })}
                                     style={{
-                                        padding: '0.7rem', fontSize: '1rem',
+                                        padding: '0.65rem', fontSize: '0.95rem',
                                         borderRadius: '8px', border: '1px solid var(--color-border)',
                                         background: 'var(--color-bg)', color: 'var(--color-text)'
                                     }}
                                 />
                             </div>
+                        </div>
+
+                        {/* Score Type */}
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>
+                                Score Type
+                            </label>
+                            <select
+                                value={section.scoreType || 'none'}
+                                onChange={(e) => updateSection(section.id, { scoreType: e.target.value as ScoreType })}
+                                style={{
+                                    padding: '0.65rem', fontSize: '0.95rem',
+                                    borderRadius: '8px', border: '1px solid var(--color-border)',
+                                    background: 'var(--color-bg)', color: 'var(--color-text)'
+                                }}
+                            >
+                                <option value="none">None</option>
+                                <option value="time">Time</option>
+                                <option value="rounds_reps">Rounds + Reps</option>
+                                <option value="reps">Total Reps</option>
+                                <option value="weight">Weight (KG/LB)</option>
+                                <option value="points">Points</option>
+                            </select>
                         </div>
 
                         {/* Content Input */}

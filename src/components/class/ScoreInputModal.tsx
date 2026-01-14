@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Trophy } from 'lucide-react';
 import type { ScoreType } from '../../types/class';
 import { saveScore } from '../../services/scoreService';
+import { useRole } from '../../hooks/useRole';
 
 interface ScoreInputModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface ScoreInputModalProps {
 }
 
 export function ScoreInputModal({ isOpen, onClose, classId, title, defaultType = 'time', onSaveSuccess }: ScoreInputModalProps) {
+    const { boxId } = useRole();
     const [scoreType, setScoreType] = useState<ScoreType>(defaultType);
     const [scoreValue, setScoreValue] = useState('');
     const [isRx, setIsRx] = useState(true);
@@ -34,7 +36,7 @@ export function ScoreInputModal({ isOpen, onClose, classId, title, defaultType =
                 scoreValue,
                 isRx,
                 note
-            });
+            }, boxId);
             onClose();
             if (onSaveSuccess) onSaveSuccess();
         } catch (error) {

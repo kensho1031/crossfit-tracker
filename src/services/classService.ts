@@ -7,13 +7,24 @@ const db = getFirestore();
  * Saves or updates a DailyClass document.
  * ID should be the date string YYYY-MM-DD.
  */
-export async function saveDailyClass(dailyClass: DailyClass): Promise<void> {
-    const docRef = doc(db, 'classes', dailyClass.id);
+/**
+ * Saves or updates a DailyClass document.
+ * ID should be the date string YYYY-MM-DD.
+ */
+export async function saveDailyClass(dailyClass: DailyClass, boxId?: string | null): Promise<void> {
+    let docRef;
+
+    if (boxId) {
+        docRef = doc(db, 'boxes', boxId, 'classes', dailyClass.id);
+    } else {
+        // Legacy or Fallback (maybe restricted in rules later)
+        docRef = doc(db, 'classes', dailyClass.id);
+    }
 
     const dataToSave = {
         ...dailyClass,
         updatedAt: serverTimestamp(),
-        // If creating new, ensure createdAt is set (handled by merge? no, explicit check better or just overwrite)
+        boxId: boxId || null // redundancy but useful
     };
 
     // Use setDoc with merge: true to update existing or create new
@@ -24,15 +35,28 @@ export async function saveDailyClass(dailyClass: DailyClass): Promise<void> {
  * Fetches a DailyClass by ID (YYYY-MM-DD).
  * Returns null if not found.
  */
-export async function getDailyClass(dateId: string): Promise<DailyClass | null> {
-    const docRef = doc(db, 'classes', dateId);
+export async function getDailyClass(dateId: string, boxId?: string | null): Promise<DailyClass | null> {
+    let docRef;
+
+    if (boxId) {
+        docRef = doc(db, 'boxes', boxId, 'classes', dateId);
+    } else {
+        // Legacy fallback
+        docRef = doc(db, 'classes', dateId);
+    }
+
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
         const data = docSnap.data();
-        // Convert Timestamps to dates/strings if needed, but for now just pass through
-        // We might need to serialize Timestamps for non-serializable checks if using Redux etc, but here is fine.
         return data as DailyClass;
     }
+
+    // If we looked in box and didn't find it, should we look in legacy?
+    // Maybe not, strict separation is better.
+    // However, for data migration period, maybe check root if not found in box?
+    // User requested "Absolute isolation": "他BOXのデータは絶対に参照できないようにする"
+    // So NO fallback if boxId is provided.
+
     return null;
 }

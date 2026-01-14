@@ -102,12 +102,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     } else {
                         addLog("Creating new athlete record...");
                         setStatus('CREATING NEW ATHLETE...');
+
+                        // Check for invitations
+                        let initialRole: any = 'member';
+                        let initialBoxId = null; // Personal mode by default
+                        let visitorExpiresAt = null;
+
+                        try {
+                            // Dynamic import to avoid circular dependency if possible, or just standard import
+                            const { findPendingInvitationByEmail, acceptInvitation } = await import('../services/invitationService');
+
+                            if (currentUser.email) {
+                                const invite = await findPendingInvitationByEmail(currentUser.email);
+                                if (invite) {
+                                    addLog(`Invitation found! Box: ${invite.boxId}, Role: ${invite.role}`);
+                                    initialRole = invite.role;
+                                    initialBoxId = invite.boxId;
+
+                                    if (invite.role === 'visitor' && invite.visitorExpiresInDays) {
+                                        const exp = new Date();
+                                        exp.setDate(exp.getDate() + invite.visitorExpiresInDays);
+                                        visitorExpiresAt = exp.toISOString();
+                                    }
+
+                                    await acceptInvitation(invite.id, currentUser.uid);
+                                } else {
+                                    addLog("No pending invitation found. Starting in Personal Mode.");
+                                }
+                            }
+                        } catch (invErr) {
+                            console.error("Invitation check failed:", invErr);
+                            addLog("Invitation check failed, continuing as Personal Mode.");
+                        }
+
                         stats = {
                             ...INITIAL_STATS,
                             uid: currentUser.uid,
                             displayName: currentUser.displayName || 'Athlete',
                             email: currentUser.email || '',
                             photoURL: currentUser.photoURL || '',
+                            role: initialRole,
+                            boxId: initialBoxId,
+                            visitorExpiresAt: visitorExpiresAt,
                             createdAt: new Date().toISOString(),
                             currentMonth: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7)
                         };

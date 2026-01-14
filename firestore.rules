@@ -3,60 +3,150 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ユーザードキュメント
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      match /history/{historyId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
+    // --- Helper Functions ---
     
-    // ワークアウトログ
-    match /logs/{logId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // カレンダーエントリー (統合データ構造)
-    match /calendar_entries/{entryId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
-    }
-    
-    // 未完了ログ（Draft Logs）
-    match /draftLogs/{draftId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // 種目 (Movements)
-    match /movements/{movementId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null; // Allow creation for seeding defaults & custom
-      allow update, delete: if request.auth != null && (
-        resource.data.uid == request.auth.uid || resource.data.isDefault == true
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getRole() {
+      return getUserData().role;
+    }
+
+    function getBoxId() {
+      return getUserData().boxId;
+    }
+
+    function isSuperAdmin() {
+      // Hardcoded Super Admin UIDs or special flag
+      return isSignedIn() && (
+        getUserData().isSuperAdmin == true || 
+        request.auth.uid in ['SUPER_ADMIN_UID_PLACEHOLDER']
       );
     }
 
-    // Personal Records (Simplified for debugging)
+    function isAdmin() {
+      return isSignedIn() && (getRole() == 'admin' || isSuperAdmin());
+    }
+
+    function isCoach() {
+      return isSignedIn() && (getRole() == 'coach' || getRole() == 'admin' || isSuperAdmin());
+    }
+
+    function isMemberOfBox(boxId) {
+      return isSignedIn() && (getBoxId() == boxId || isSuperAdmin());
+    }
+
+    function isAdminOfBox(boxId) {
+      return isAdmin() && (getBoxId() == boxId || isSuperAdmin());
+    }
+
+    function isCoachOfBox(boxId) {
+      return isCoach() && (getBoxId() == boxId || isSuperAdmin());
+    }
+
+    // --- Rules ---
+
+    // ユーザードキュメント
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSuperAdmin() || (
+        isSignedIn() && getBoxId() != null && getBoxId() == resource.data.boxId && isCoach()
+      );
+      
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      
+      allow update: if isOwner(userId) && (
+        // Prevent users from changing their own role or boxId
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'boxId', 'isSuperAdmin'])
+      ) || isSuperAdmin() || (
+        isAdminOfBox(resource.data.boxId) && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'visitorExpiresAt'])
+      );
+
+      match /history/{historyId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // BOX (Gym) Documents
+    match /boxes/{boxId} {
+      allow read: if isSignedIn() && (getBoxId() == boxId || isSuperAdmin());
+      allow write: if isSuperAdmin(); // Box creation is restricted
+
+      // Box-specific Classes
+      match /classes/{classId} {
+        allow read: if isMemberOfBox(boxId);
+        allow write: if isCoachOfBox(boxId);
+
+        // Class Leaderboard (Scores)
+        match /scores/{scoreUserId} {
+          allow read: if isMemberOfBox(boxId);
+          allow write: if isOwner(scoreUserId) || isAdminOfBox(boxId);
+        }
+      }
+
+      // Box-specific Attendance
+      match /attendance/{attendanceId} {
+        allow read: if isMemberOfBox(boxId);
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isMemberOfBox(boxId);
+        allow delete: if isCoachOfBox(boxId);
+      }
+    }
+    
+    // Invitations
+    match /invitations/{inviteId} {
+      // Allow read if user is admin of the box OR the invitation belongs to their email
+      allow read: if isAdminOfBox(resource.data.boxId) || (
+        isSignedIn() && request.auth.token.email.lower() == resource.data.email.lower()
+      );
+      
+      // Allow create/update if admin of the target box
+      allow create, update: if isAdminOfBox(request.resource.data.boxId);
+      
+      // Allow delete only for admins or when accepted?
+      allow delete: if isAdminOfBox(resource.data.boxId);
+    }
+
+    // --- Legacy / Personal Mode / Shared Data ---
+
+    // Legacy Daily Classes (Fallback)
+    match /daily_classes/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+
+      match /scores/{scoreUserId} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(scoreUserId) || isSuperAdmin();
+      }
+    }
+
+    // Movemens (Shared/User-defined)
+    match /movements/{movementId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin() || (resource.data.uid == request.auth.uid);
+    }
+
+    // User Logs (Personal Mode)
+    match /logs/{logId} {
+      allow read, write: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Calendar & Other personal data
+    match /calendar_entries/{entryId} {
+      allow read, write: if isSignedIn() && (resource.data.uid == request.auth.uid || request.resource.data.uid == request.auth.uid);
+    }
+
     match /prs/{prId} {
-        allow read, write: if request.auth != null;
-    }
-
-    // Analysis Logs (AI confidence tracking)
-    match /analysisLogs/{logId} {
-        allow create: if request.auth != null;
-        allow read: if request.auth != null && request.auth.uid == resource.data.uid;
-    }
-
-    // Daily Classes (Admin managed, public read)
-    match /classes/{classId} {
-        allow read: if true; // Publicly readable
-        allow write: if request.auth != null; // Authenticated users can write (temporarily for development)
+      allow read, write: if isSignedIn() && (resource.data.uid == request.auth.uid || request.resource.data.uid == request.auth.uid);
     }
   }
 }

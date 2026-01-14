@@ -6,6 +6,7 @@ import { MovementManager } from './pages/MovementManager';
 import { ClassDetail } from './pages/ClassDetail';
 import { CheckInHandler } from './pages/CheckInHandler';
 import { AdminTodayManager } from './pages/Admin/AdminTodayManager';
+import { UserManagement } from './pages/Admin/UserManagement';
 import { ScoreInputPage } from './pages/ScoreInputPage';
 import { Login } from './pages/Auth/Login';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -41,7 +42,7 @@ function App() {
               <ClassDetail />
             </ProtectedRoute>
           } />
-          <Route path="checkin/:classId" element={
+          <Route path="checkin" element={
             <ProtectedRoute>
               <CheckInHandler />
             </ProtectedRoute>
@@ -49,6 +50,11 @@ function App() {
           <Route path="admin/class" element={
             <ProtectedRoute>
               <AdminTodayManager />
+            </ProtectedRoute>
+          } />
+          <Route path="admin/users" element={
+            <ProtectedRoute>
+              <UserManagement />
             </ProtectedRoute>
           } />
           <Route path="class/:date" element={
