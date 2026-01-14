@@ -13,10 +13,4 @@
 - [x] Synced section colors between ClassDetail and ScoreInputPage
 - [x] Fixed default section title logic (Type based instead of WOD)
 - [x] Save documentation to project `docs` folder
-- [/] Git setup and commit
-
-## In Progress
-- [/] Git commit of the changes
-
-## Upcoming
-- [ ] Final confirmation with user
+- [x] Git setup and initial commit
