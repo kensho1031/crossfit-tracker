@@ -12,6 +12,14 @@ export function Login() {
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
+        // Capture Invite Token
+        const params = new URLSearchParams(window.location.search);
+        const inviteToken = params.get('invite');
+        if (inviteToken) {
+            sessionStorage.setItem('pending_invite_token', inviteToken);
+            console.log("Invite token captured:", inviteToken);
+        }
+
         if (user && !authLoading) {
             navigate('/');
         }

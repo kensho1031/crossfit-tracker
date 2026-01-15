@@ -69,10 +69,15 @@ export function PRCards() {
         return unit;
     };
 
+    const [loading, setLoading] = useState(false);
+
     const loadPRs = async () => {
         if (!user) return;
+        setLoading(true);
         try {
+            console.log("Loading PRs for user:", user.uid, "Box:", currentBox?.id);
             const allPRs = await PRService.getAllUserPRs(user.uid, currentBox?.id || null);
+            console.log("Loaded PRs:", allPRs.length);
 
             const bestsMap = new Map<string, PR>();
 
@@ -137,10 +142,13 @@ export function PRCards() {
                 }
             });
 
+            console.log("Setting Personal Bests:", displayList.length);
             setPersonalBests(displayList);
 
         } catch (error: any) {
             console.error("Failed to load PRs:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -226,6 +234,14 @@ export function PRCards() {
     // Determine Layout Items - PC shows 8 slots
     const topItems = sorted.slice(0, 8);
     const hiddenItems = sorted.slice(8);
+
+    if (loading && personalBests.length === 0) {
+        return (
+            <div style={{ marginBottom: '3rem', textAlign: 'center', padding: '2rem' }}>
+                <div style={{ color: 'var(--color-text-muted)' }}>Loading records...</div>
+            </div>
+        );
+    }
 
     return (
         <div style={{ marginBottom: '3rem' }}>

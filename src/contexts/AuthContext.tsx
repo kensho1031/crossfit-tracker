@@ -277,29 +277,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const result = await signInWithPopup(auth, provider);
             addLog(`Popup Success: ${result.user.email}`);
 
-            // --- STRICT INVITATION CHECK ---
+            // --- STRICT INVITATION & MEMBERSHIP CHECK ---
             const userDocRef = doc(db, 'users', result.user.uid);
             const userDoc = await getDoc(userDocRef);
 
-            if (!userDoc.exists()) {
-                addLog("Checking invitations for POTENTIAL new user...");
-                if (result.user.email) {
-                    const { findPendingInvitationByEmail } = await import('../services/invitationService');
-                    const invite = await findPendingInvitationByEmail(result.user.email);
+            // Import service dynamically
+            const { getInvitationByToken, findPendingInvitationByEmail, acceptInvitation } = await import('../services/invitationService');
+            const { addUserToBox } = await import('../services/userBoxService');
 
-                    if (!invite) {
-                        addLog("No invitation found at popup sign-in. Blocking.");
-                        // Clean up: delete auth account so onAuthStateChanged doesn't treat it as logged in
-                        await result.user.delete();
-                        await signOut(auth);
-                        setUser(null);
-                        setLoading(false);
-                        throw new Error('INVITATION_REQUIRED');
-                    }
+            // 1. Check for persisted token first (Strongest signal)
+            const token = sessionStorage.getItem('pending_invite_token');
+            let matchedInvite = null;
+
+            if (token) {
+                matchedInvite = await getInvitationByToken(token);
+                if (matchedInvite && matchedInvite.email !== result.user.email) {
+                    // Email mismatch!
+                    addLog(`Invite Email Mismatch: Token=${matchedInvite.email}, Login=${result.user.email}`);
+                    await result.user.delete();
+                    await signOut(auth);
+                    setUser(null);
+                    setLoading(false);
+                    sessionStorage.removeItem('pending_invite_token'); // Clear invalid token
+                    throw new Error(`この招待リンクは ${matchedInvite.email} 専用です。ログインしたアカウント (${result.user.email}) と一致しません。`);
                 }
             }
-            // If we reach here, either user already exists OR they have an invitation.
-            // onAuthStateChanged will handle the rest (stats creation, memberships fetch, etc.)
+
+            // 2. If no token or token matched, check by email (Fallback for same-device flow without link click, or lost session)
+            if (!matchedInvite && result.user.email) {
+                matchedInvite = await findPendingInvitationByEmail(result.user.email);
+            }
+
+            // 3. Decision Logic
+            if (!userDoc.exists()) {
+                // New User: MUST have an invitation
+                if (!matchedInvite) {
+                    addLog("No invitation found for NEW user. Blocking.");
+                    await result.user.delete();
+                    await signOut(auth);
+                    setUser(null);
+                    setLoading(false);
+                    throw new Error('INVITATION_REQUIRED');
+                }
+            }
+
+            // 4. Processing Invitation (for both New and Existing users)
+            if (matchedInvite) {
+                addLog(`Processing Invite: ${matchedInvite.id} for Box: ${matchedInvite.boxId}`);
+
+                // Add to Box
+                // Cast matchedInvite.role to UserRole (assuming service guarantees valid role)
+                await addUserToBox(result.user.uid, matchedInvite.boxId, matchedInvite.role as any);
+
+                // Mark as used
+                await acceptInvitation(matchedInvite.id);
+
+                // Set default box if not set
+                // (This will be handled by regular sync, but good to ensure)
+
+                // Clear token
+                sessionStorage.removeItem('pending_invite_token');
+                addLog("Invitation Accepted & Membership Granted.");
+            }
+
+            // If existing user has no invite, they just log in normally (assuming they already have memberships).
+            // Logic continues to onAuthStateChanged...
             // -------------------------------
 
         } catch (error: any) {

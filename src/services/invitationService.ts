@@ -56,6 +56,40 @@ export async function createInvitation(
     };
 
     const docRef = await addDoc(collection(db, INVITATION_COLLECTION), invitation);
+
+    // Trigger Email via 'mail' collection (Firebase Extension)
+    try {
+        await addDoc(collection(db, 'mail'), {
+            to: [email],
+            message: {
+                subject: '【CrossFit Tracker】BOXへの招待が届きました',
+                html: `
+                    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                        <h2 style="color: #00bcd4;">BOXへの招待</h2>
+                        <p>${email} 様</p>
+                        <p>CrossFit Tracker のBOXへの招待が届いています。</p>
+                        <p>以下のリンクをクリックして、登録を完了してください。</p>
+                        <div style="margin: 30px 0;">
+                            <a href="${window.location.origin}/login?invite=${token}" 
+                               style="background-color: #00bcd4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                               招待を受け取る
+                            </a>
+                        </div>
+                        <p style="font-size: 0.9em; color: #666;">
+                            ※このリンクの有効期限は7日間です。<br>
+                            ※心当たりがない場合は、このメールを破棄してください。
+                        </p>
+                    </div>
+                `
+            }
+        });
+        console.log("Invitation email trigger created.");
+    } catch (e) {
+        console.error("Failed to trigger email:", e);
+        // Note: We don't fail the invitation creation itself, but we should log it.
+        // In a strict environment, we might verify email sending success.
+    }
+
     return docRef.id;
 }
 
@@ -97,6 +131,21 @@ export async function findPendingInvitationByEmail(email: string): Promise<Invit
     // In a multi-invite scenario, we might want to accept ALL of them?
     const docData = snapshot.docs[0].data() as Invitation;
     return { ...docData, id: snapshot.docs[0].id };
+}
+
+/**
+ * Find invitation by Token (Strict verification)
+ */
+export async function getInvitationByToken(token: string): Promise<Invitation | null> {
+    const q = query(
+        collection(db, INVITATION_COLLECTION),
+        where('token', '==', token),
+        where('status', '==', 'pending')
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Invitation;
 }
 
 /**

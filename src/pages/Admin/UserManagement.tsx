@@ -495,7 +495,7 @@ export function UserManagement() {
                                             background: invite.status === 'pending' ? 'rgba(255, 193, 7, 0.2)' : 'rgba(76, 175, 80, 0.2)',
                                             color: invite.status === 'pending' ? '#FFC107' : '#4CAF50'
                                         }}>
-                                            {invite.status === 'pending' ? '招待中' : '登録済み'}
+                                            {invite.status === 'pending' ? '招待中' : '登録完了'}
                                         </div>
                                     </div>
                                 </div>
