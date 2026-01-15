@@ -74,6 +74,21 @@ export const saveScore = async (data: ScoreData, boxId?: string | null) => {
         }, { merge: true });
     }
 
+    // 3. Save to Calendar Entries (for Monthly Calendar Integration)
+    // ID: wod-{classId}-{userId}
+    const calendarRef = doc(db, 'calendar_entries', `wod-${data.classId}-${user.uid}`);
+    await setDoc(calendarRef, {
+        uid: user.uid,
+        date: new Date().toISOString().split('T')[0], // or use class date if available, but usually today
+        type: 'wod',
+        title: data.title || data.wodName || 'WOD',
+        raw_text: `${data.wodName || 'WOD'}: ${data.scoreValue} ${data.isRx ? '(Rx)' : ''}\n${data.note || ''}`,
+        photoUrl: null,
+        boxId: boxId || null,
+        createdAt: timestamp,
+        updatedAt: timestamp
+    }, { merge: true });
+
     return scoreDoc;
 };
 

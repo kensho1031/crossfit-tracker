@@ -20,5 +20,6 @@ export interface PR {
     source: 'manual' | 'wod_analysis';
     note?: string;
     wadeAnalysisId?: string; // Link to draftLog if applicable
+    boxId?: string | null;
     createdAt: any; // Timestamp
 }

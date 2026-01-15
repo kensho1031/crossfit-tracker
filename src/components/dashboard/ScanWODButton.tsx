@@ -101,10 +101,10 @@ export function ScanWODButton() {
                     />
                 </div>
                 <div style={{
-                    fontSize: '2rem',
+                    fontSize: '1.8rem',
                     fontWeight: 800,
                     color: 'var(--color-neon)',
-                    letterSpacing: 'var(--letter-spacing-tight)',
+                    letterSpacing: '0.05em',
                     textTransform: 'uppercase',
                     fontFamily: 'var(--font-heading)',
                     textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'

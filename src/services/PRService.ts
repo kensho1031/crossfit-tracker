@@ -58,41 +58,53 @@ export const PRService = {
         return docRef.id;
     },
 
-    async getHistory(uid: string, exerciseId: string): Promise<PR[]> {
-        const q = query(
-            collection(db, 'prs'),
+    async getHistory(uid: string, exerciseId: string, boxId?: string | null): Promise<PR[]> {
+        const constraints: any[] = [
             where('uid', '==', uid),
             where('exerciseId', '==', exerciseId),
             orderBy('date', 'desc'),
             orderBy('createdAt', 'desc')
-        );
+        ];
+
+        if (boxId) {
+            constraints.splice(2, 0, where('boxId', '==', boxId));
+        }
+
+        const q = query(collection(db, 'prs'), ...constraints);
         const snapshot = await getDocs(q);
         return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PR));
     },
 
-    async getPersonalBest(uid: string, exerciseId: string): Promise<PR | null> {
-        const q = query(
-            collection(db, 'prs'),
+    async getPersonalBest(uid: string, exerciseId: string, boxId?: string | null): Promise<PR | null> {
+        const constraints: any[] = [
             where('uid', '==', uid),
             where('exerciseId', '==', exerciseId),
-            orderBy('value', 'desc'), // Assuming higher is better. Logic needs explicit handling for time/reps if mixed.
+            orderBy('value', 'desc'),
             limit(1)
-        );
+        ];
+
+        if (boxId) {
+            constraints.splice(2, 0, where('boxId', '==', boxId));
+        }
+
+        const q = query(collection(db, 'prs'), ...constraints);
         const snapshot = await getDocs(q);
         if (snapshot.empty) return null;
         return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as PR;
     },
 
     // Get personal bests for a list of exercises efficiently
-    // Firestore doesn't support "IN" with different orderBys easily. 
-    // We might fetching all user PRs and computing client side if the dataset isn't huge.
-    // Or just fetching top items for key exercises individually.
-    async getAllUserPRs(uid: string): Promise<PR[]> {
-        const q = query(
-            collection(db, 'prs'),
+    async getAllUserPRs(uid: string, boxId?: string | null): Promise<PR[]> {
+        const constraints: any[] = [
             where('uid', '==', uid),
             orderBy('date', 'desc')
-        );
+        ];
+
+        if (boxId) {
+            constraints.splice(1, 0, where('boxId', '==', boxId));
+        }
+
+        const q = query(collection(db, 'prs'), ...constraints);
         const snapshot = await getDocs(q);
         return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PR));
     }

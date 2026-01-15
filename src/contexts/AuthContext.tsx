@@ -12,16 +12,25 @@ import {
     browserLocalPersistence,
     type AuthError
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
-import { type UserStats, INITIAL_STATS } from '../types/user';
+import { type UserStats, INITIAL_STATS, type UserBoxMembership } from '../types/user';
+import type { Box } from '../types/box';
+import { getBoxById } from '../services/boxService';
 import { Loader2, Bug } from 'lucide-react';
 
 interface AuthContextType {
     user: User | null;
     userStats: UserStats | null;
+    memberships: UserBoxMembership[];
+    myBoxes: Box[];
+    currentBox: Box | null;
+    setCurrentBox: (box: Box | null) => void;
+
     loading: boolean;
     debugLogs: string[];
+    showDebug: boolean;
+    setShowDebug: (show: boolean) => void;
     signInWithGoogle: (method?: 'popup' | 'redirect') => Promise<void>;
     loginAnonymously: () => Promise<void>;
     logout: () => Promise<void>;
@@ -32,15 +41,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [userStats, setUserStats] = useState<UserStats | null>(null);
+
+    // Multi-Box State
+    const [memberships, setMemberships] = useState<UserBoxMembership[]>([]);
+    const [myBoxes, setMyBoxes] = useState<Box[]>([]);
+    const [currentBox, setCurrentBoxState] = useState<Box | null>(null);
+
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('CONNECTING TO GYM...');
-    const [loadError, setLoadError] = useState(false);
     const [debugLogs, setDebugLogs] = useState<string[]>([]);
     const [showDebug, setShowDebug] = useState(false);
 
     const addLog = (msg: string) => {
         console.log(`[AUTH] ${msg}`);
         setDebugLogs(prev => [...prev.slice(-19), `${new Date().toLocaleTimeString()}: ${msg}`]);
+    };
+
+    // Helper to update currentBox and persist to Firestore
+    const setCurrentBox = async (box: Box | null) => {
+        setCurrentBoxState(box);
+        if (user) {
+            // Update last accessed box in user profile
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, { currentBoxId: box?.id || null });
+        }
     };
 
     useEffect(() => {
@@ -50,23 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 addLog("Initializing Auth Persistence...");
                 await setPersistence(auth, browserLocalPersistence);
-
-                addLog("Checking redirect result...");
-                try {
-                    const result = await getRedirectResult(auth);
-                    if (result) {
-                        addLog(`Redirect Success: ${result.user.email}`);
-                    } else {
-                        addLog("No redirect found.");
-                    }
-                } catch (redirectError: any) {
-                    // Handle specific redirect errors if needed, or just log
-                    addLog(`Redirect check warning: ${redirectError.message}`);
-                }
-
+                const result = await getRedirectResult(auth);
+                if (result) addLog(`Redirect Success: ${result.user.email}`);
             } catch (err: any) {
                 addLog(`Init Error: ${err.message}`);
-                setLoadError(true);
                 setStatus(`INIT ERROR: ${err.message}`);
             }
         };
@@ -75,81 +86,143 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const timer = setTimeout(() => {
             if (loading && mounted) {
-                addLog("Initialization Timeout reached.");
-                setLoadError(true);
                 setStatus('CONNECTION SLOW - RETRYING...');
-                // Force stop loading after 5 more seconds if it's still stuck?
-                // Or leave it to the user to refresh.
             }
         }, 15000);
 
         setStatus('INITIALIZING ATHLETE...');
+        let membershipUnsubscribe: (() => void) | null = null;
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (!mounted) return;
             addLog(`Auth State Change: ${currentUser ? currentUser.email : 'GUEST'}`);
+            if (currentUser) {
+                addLog(`Current User Email: ${currentUser.email}`);
+            }
+
+            // Clear previous subscription
+            if (membershipUnsubscribe) {
+                membershipUnsubscribe();
+                membershipUnsubscribe = null;
+            }
 
             if (currentUser) {
                 setStatus('FETCHING STATS...');
                 try {
                     const userDocRef = doc(db, 'users', currentUser.uid);
-                    addLog("Fetching user document...");
                     const userDoc = await getDoc(userDocRef);
-
                     let stats: UserStats;
+
                     if (userDoc.exists()) {
                         stats = userDoc.data() as UserStats;
                         addLog("Stats loaded.");
                     } else {
-                        addLog("Creating new athlete record...");
-                        setStatus('CREATING NEW ATHLETE...');
+                        // --- New User Flow: Acceptance & Verification ---
+                        if (!currentUser.email) {
+                            addLog("Anonymous login - No invitation check required (or logic TBD)");
+                        } else {
+                            // Check for pending invitations
+                            const { findPendingInvitationByEmail, acceptAllPendingInvitations } = await import('../services/invitationService');
+                            const invite = await findPendingInvitationByEmail(currentUser.email);
 
-                        // Check for invitations
-                        let initialRole: any = 'member';
-                        let initialBoxId = null; // Personal mode by default
-                        let visitorExpiresAt = null;
-
-                        try {
-                            // Dynamic import to avoid circular dependency if possible, or just standard import
-                            const { findPendingInvitationByEmail, acceptInvitation } = await import('../services/invitationService');
-
-                            if (currentUser.email) {
-                                const invite = await findPendingInvitationByEmail(currentUser.email);
-                                if (invite) {
-                                    addLog(`Invitation found! Box: ${invite.boxId}, Role: ${invite.role}`);
-                                    initialRole = invite.role;
-                                    initialBoxId = invite.boxId;
-
-                                    if (invite.role === 'visitor' && invite.visitorExpiresInDays) {
-                                        const exp = new Date();
-                                        exp.setDate(exp.getDate() + invite.visitorExpiresInDays);
-                                        visitorExpiresAt = exp.toISOString();
-                                    }
-
-                                    await acceptInvitation(invite.id, currentUser.uid);
-                                } else {
-                                    addLog("No pending invitation found. Starting in Personal Mode.");
-                                }
+                            if (!invite) {
+                                // If NO invitation, block them out completely
+                                addLog("No invitation found for new user in onAuthStateChanged. Blocking.");
+                                await currentUser.delete();
+                                await signOut(auth);
+                                // Note: throwing here is limited since it's a callback, 
+                                // but we handle it in the signIn caller too.
+                                throw new Error('INVITATION_REQUIRED');
                             }
-                        } catch (invErr) {
-                            console.error("Invitation check failed:", invErr);
-                            addLog("Invitation check failed, continuing as Personal Mode.");
+
+                            // Accept all invitations
+                            await acceptAllPendingInvitations(currentUser.uid, currentUser.email);
+                            addLog("Accepted invitations for NEW user.");
                         }
 
+                        // Creating New User Logic
                         stats = {
                             ...INITIAL_STATS,
                             uid: currentUser.uid,
                             displayName: currentUser.displayName || 'Athlete',
                             email: currentUser.email || '',
                             photoURL: currentUser.photoURL || '',
-                            role: initialRole,
-                            boxId: initialBoxId,
-                            visitorExpiresAt: visitorExpiresAt,
                             createdAt: new Date().toISOString(),
-                            currentMonth: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7)
+                            currentMonth: new Date().toISOString().slice(0, 7),
                         };
                         await setDoc(userDocRef, stats);
-                        addLog("New record created.");
+                        addLog("New user record created.");
                     }
+
+                    // --- Real-time Memberships ---
+                    addLog("Subscribing to Memberships...");
+                    const { collection, query, where, onSnapshot } = await import('firebase/firestore');
+                    const membershipQuery = query(
+                        collection(db, 'user_boxes'),
+                        where('userId', '==', currentUser.uid)
+                    );
+
+                    membershipUnsubscribe = onSnapshot(membershipQuery, async (snapshot) => {
+                        const userMemberships = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        } as UserBoxMembership));
+
+                        addLog(`Memberships updated: ${userMemberships.length}`);
+                        setMemberships(userMemberships);
+
+                        // Fetch actual Box objects for these memberships
+                        const boxes = await Promise.all(
+                            userMemberships.map(async m => {
+                                try {
+                                    return await getBoxById(m.boxId);
+                                } catch (e) {
+                                    addLog(`Failed to load box ${m.boxId}: ${e}`);
+                                    return null;
+                                }
+                            })
+                        );
+                        const validBoxes = boxes.filter((b): b is Box => b !== null);
+
+                        // --- Box List & Current Box Determination ---
+                        const superAdminUid = 'sljuwV64DYb9AnZJ8WxBmKRblYz1';
+                        const isSuperAdmin = currentUser.uid === superAdminUid;
+                        addLog(`User UID: ${currentUser.uid} (isSuperAdmin: ${isSuperAdmin})`);
+                        let boxesToDisplay: Box[] = validBoxes;
+
+                        if (isSuperAdmin) {
+                            try {
+                                const { getAllBoxes } = await import('../services/boxService');
+                                const allBoxes = await getAllBoxes();
+                                boxesToDisplay = allBoxes;
+                                setMyBoxes(allBoxes);
+                                addLog(`Super Admin: Loaded all ${allBoxes.length} boxes`);
+                            } catch (e) {
+                                addLog(`Super Admin Load Failed: ${e}`);
+                                setMyBoxes(validBoxes);
+                            }
+                        } else {
+                            setMyBoxes(validBoxes);
+                        }
+
+                        // Determine current box
+                        if (boxesToDisplay.length > 0) {
+                            // Prioritize: 1. stats.currentBoxId (if exists in boxesToDisplay)
+                            //            2. first item in validBoxes (if regular user)
+                            //            3. first item in boxesToDisplay (fallback)
+                            const targetId = stats.currentBoxId;
+                            const savedBox = boxesToDisplay.find(b => b.id === targetId);
+
+                            if (!currentBox || !boxesToDisplay.find(b => b.id === currentBox.id)) {
+                                const boxToSet = savedBox || (isSuperAdmin ? boxesToDisplay[0] : (validBoxes[0] || boxesToDisplay[0]));
+                                addLog(`Setting current box to: ${boxToSet.name}`);
+                                setCurrentBoxState(boxToSet);
+                            }
+                        } else if (!isSuperAdmin) {
+                            addLog("User has no boxes. Clearing currentBox.");
+                            setCurrentBoxState(null);
+                        }
+                    });
 
                     if (mounted) {
                         setUser(currentUser);
@@ -166,6 +239,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (mounted) {
                     setUser(null);
                     setUserStats(null);
+                    setMemberships([]);
+                    setCurrentBoxState(null);
                 }
             }
 
@@ -182,76 +257,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    const signInWithGoogle = async (method: 'popup' | 'redirect' = 'popup') => {
-        addLog(`Login requested via ${method}.`);
-        addLog(`Current Origin: ${window.location.origin}`);
+    // Global toggle for dev/superadmin
+    useEffect(() => {
+        (window as any).toggleDebug = () => setShowDebug(prev => !prev);
+    }, []);
 
+    const signInWithGoogle = async (method: 'popup' | 'redirect' = 'popup') => {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
 
         try {
             if (method === 'redirect') {
-                setStatus('REDIRECTING TO GOOGLE...');
+                setStatus('REDIRECTING...');
                 setLoading(true);
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectStartError: any) {
-                    setLoading(false);
-                    setStatus('REDIRECT ERROR');
-                    addLog(`Redirect Start Error: ${redirectStartError.code} - ${redirectStartError.message}`);
-                    alert(`リダイレクトの開始に失敗しました。\nCode: ${redirectStartError.code}\nMessage: ${redirectStartError.message}`);
-                }
-                return; // Redirecting...
+                await signInWithRedirect(auth, provider);
+                return;
             }
 
-            // Defaults to popup
-            addLog("Attempting Popup login...");
             const result = await signInWithPopup(auth, provider);
             addLog(`Popup Success: ${result.user.email}`);
-        } catch (error: any) {
-            const authError = error as AuthError;
-            addLog(`Login Failed (${method}): ${authError.code}`);
 
-            if (authError.code === 'auth/unauthorized-domain') {
-                alert(`ドメインが許可されていません。\nFirebaseコンソールで ${window.location.hostname} を承認済みドメインに追加してください。`);
-            }
+            // --- STRICT INVITATION CHECK ---
+            const userDocRef = doc(db, 'users', result.user.uid);
+            const userDoc = await getDoc(userDocRef);
 
-            if (
-                authError.code === 'auth/popup-blocked' ||
-                authError.code === 'auth/cancelled-popup-request' ||
-                authError.code === 'auth/popup-closed-by-user' ||
-                authError.message.includes("400") // Catch generic 400s if they manifest here
-            ) {
-                addLog("Popup issues detected. Suggesting redirect...");
-                // Auto-fallback for some cases, or just log
-                if (method === 'popup') {
-                    // Optionally auto-redirect? 
-                    // Let's force redirect if popup failed specifically due to blocking
-                    if (authError.code === 'auth/popup-blocked') {
-                        addLog("Popup blocked, switching to redirect automatically.");
-                        await signInWithGoogle('redirect');
-                        return;
+            if (!userDoc.exists()) {
+                addLog("Checking invitations for POTENTIAL new user...");
+                if (result.user.email) {
+                    const { findPendingInvitationByEmail } = await import('../services/invitationService');
+                    const invite = await findPendingInvitationByEmail(result.user.email);
+
+                    if (!invite) {
+                        addLog("No invitation found at popup sign-in. Blocking.");
+                        // Clean up: delete auth account so onAuthStateChanged doesn't treat it as logged in
+                        await result.user.delete();
+                        await signOut(auth);
+                        setUser(null);
+                        setLoading(false);
+                        throw new Error('INVITATION_REQUIRED');
                     }
                 }
             }
+            // If we reach here, either user already exists OR they have an invitation.
+            // onAuthStateChanged will handle the rest (stats creation, memberships fetch, etc.)
+            // -------------------------------
 
-            alert(`ログインに失敗しました: ${authError.message}\n(Code: ${authError.code})`);
+        } catch (error: any) {
+            const authError = error as AuthError;
+            console.error("Login Error:", authError);
+
+            if (authError.code === 'auth/requires-recent-login') {
+                await signOut(auth);
+                alert("セッションの有効期限切れです。もう一度お試しください。");
+            } else {
+                alert(`Login Failed: ${authError.message}`);
+            }
             setLoading(false);
         }
     };
 
-
-
     const loginAnonymously = async () => {
-        addLog("Anonymous login requested.");
         setLoading(true);
-        setStatus('LOGGING IN AS GUEST...');
         try {
-            const result = await signInAnonymously(auth);
-            addLog(`Anonymous Success: ${result.user.uid}`);
+            await signInAnonymously(auth);
         } catch (error: any) {
-            addLog(`Anonymous Login Failed: ${error.message}`);
-            alert(`ゲストログインに失敗しました: ${error.message}`);
+            alert(`Guest Login Failed: ${error.message}`);
             setLoading(false);
         }
     };
@@ -259,62 +329,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = async () => {
         try {
             await signOut(auth);
-            addLog("Logged out.");
             setUser(null);
             setUserStats(null);
-        } catch (error: any) {
-            addLog(`Logout Error: ${error.message}`);
-        }
+            setMemberships([]);
+            setMyBoxes([]);
+            setCurrentBoxState(null);
+        } catch (error) { console.error(error); }
     };
 
     return (
-        <AuthContext.Provider value={{ user, userStats, loading, debugLogs, signInWithGoogle, loginAnonymously, logout }}>
+        <AuthContext.Provider value={{
+            user,
+            userStats,
+            memberships,
+            myBoxes,
+            currentBox,
+            setCurrentBox,
+            loading,
+            debugLogs,
+            showDebug,
+            setShowDebug,
+            signInWithGoogle,
+            loginAnonymously,
+            logout
+        }}>
+            {/* Persistent Debug Toggle - Subtle */}
+            <button
+                onClick={() => setShowDebug(prev => !prev)}
+                style={{
+                    position: 'fixed',
+                    bottom: '10px',
+                    right: '10px',
+                    zIndex: 10005,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    border: '1px solid rgba(0, 255, 255, 0.3)',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'rgba(0, 255, 255, 0.5)',
+                    cursor: 'pointer',
+                    pointerEvents: 'auto',
+                    WebkitTapHighlightColor: 'transparent'
+                }}
+            >
+                <Bug size={16} />
+            </button>
+
+            {showDebug && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '10px',
+                    right: '10px',
+                    background: 'rgba(0,0,0,0.95)',
+                    padding: '15px',
+                    fontSize: '11px',
+                    maxHeight: '80vh',
+                    overflowY: 'auto',
+                    border: '2px solid #00ffff',
+                    color: '#00ffff',
+                    zIndex: 10010,
+                    pointerEvents: 'auto',
+                    fontFamily: 'monospace',
+                    boxShadow: '0 -10px 40px rgba(0,0,0,0.5)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #333', paddingBottom: '5px' }}>
+                        <strong style={{ letterSpacing: '2px' }}>SYSTEM DEBUG LOGS</strong>
+                        <button onClick={() => setShowDebug(false)} style={{ color: '#fff', background: '#e11d48', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>CLOSE</button>
+                    </div>
+                    {debugLogs.length === 0 && <div>No logs yet...</div>}
+                    {debugLogs.map((log, i) => <div key={i} style={{ marginBottom: '4px', borderBottom: '1px solid #111' }}>{log}</div>)}
+                </div>
+            )}
+
             {loading ? (
                 <div style={{
                     height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: '#00ffff',
                     fontFamily: '"Courier New", monospace'
-                }}>
+                }} >
                     <Loader2 size={48} className="animate-spin mb-4" />
-                    <div style={{ letterSpacing: '2px', fontSize: '0.9rem', fontWeight: 800, textAlign: 'center', padding: '0 20px' }}>
-                        {status}
-                    </div>
-
-                    {/* Floating Debug Toggle */}
-                    <div
-                        onClick={() => setShowDebug(!showDebug)}
-                        style={{ position: 'fixed', bottom: '20px', right: '20px', opacity: 0.3, cursor: 'pointer' }}
-                    >
-                        <Bug size={16} />
-                    </div>
-
-                    {showDebug && (
-                        <div style={{
-                            position: 'fixed', bottom: '50px', left: '10px', right: '10px',
-                            background: 'rgba(0,0,0,0.9)', padding: '10px', fontSize: '10px',
-                            maxHeight: '200px', overflowY: 'auto', border: '1px solid #00ffff', color: '#00ffff'
-                        }}>
-                            {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
-                        </div>
-                    )}
-
-                    {loadError && (
-                        <div className="mt-8 flex flex-col gap-2">
-                            <p className="text-red-400 text-xs">Initialization taking longer than expected.</p>
-                            <button
-                                onClick={() => window.location.reload()}
-                                style={{
-                                    padding: '8px 16px', background: 'transparent',
-                                    border: '1px solid #ff4444', color: '#ff4444', borderRadius: '4px'
-                                }}
-                            >
-                                RELOAD PAGE
-                            </button>
-                        </div>
-                    )}
-                </div>
+                    <div style={{ letterSpacing: '2px', fontSize: '0.9rem', fontWeight: 800 }}>{status}</div>
+                </div >
             ) : children}
-        </AuthContext.Provider>
+        </AuthContext.Provider >
     );
 }
 

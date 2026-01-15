@@ -4,7 +4,6 @@ import { DashboardTabs } from '../components/dashboard/DashboardTabs';
 import { BodyStatusCard } from '../components/dashboard/BodyStatusCard';
 import { WeightTrendChart } from '../components/dashboard/WeightTrendChart';
 import { PRCards } from '../components/dashboard/PRCards';
-import { ScanWODButton } from '../components/dashboard/ScanWODButton';
 import { QuoteOfTheDay } from '../components/dashboard/QuoteOfTheDay';
 import { DraftLogsSection } from '../components/dashboard/DraftLogsSection';
 import { WeeklySummarySimple } from '../components/dashboard/WeeklySummarySimple';
@@ -54,24 +53,12 @@ export function Dashboard() {
 
                         <WeeklySummarySimple onDetailClick={() => setActiveTab('calendar')} />
 
-                        <div style={{ margin: '2rem 0' }}>
+                        <div style={{ margin: '2rem 0', minHeight: '200px', clear: 'both' }}>
                             <PRCards />
                         </div>
 
                         <QuoteOfTheDay />
 
-                        {/* Scan WOD - Auxiliary placement at bottom */}
-                        <div style={{ marginTop: '2rem', borderTop: '1px solid var(--color-border)', paddingTop: '2rem' }}>
-                            <h3 style={{
-                                fontSize: '1rem',
-                                color: 'var(--color-text-muted)',
-                                marginBottom: '1rem',
-                                paddingLeft: '0.5rem'
-                            }}>
-                                TOOLS
-                            </h3>
-                            <ScanWODButton />
-                        </div>
                     </>
                 )}
 

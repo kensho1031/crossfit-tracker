@@ -7,6 +7,8 @@ import { ClassDetail } from './pages/ClassDetail';
 import { CheckInHandler } from './pages/CheckInHandler';
 import { AdminTodayManager } from './pages/Admin/AdminTodayManager';
 import { UserManagement } from './pages/Admin/UserManagement';
+import { BoxManagement } from './pages/Admin/BoxManagement';
+import { BoxMemberManagement } from './pages/Admin/BoxMemberManagement';
 import { ScoreInputPage } from './pages/ScoreInputPage';
 import { Login } from './pages/Auth/Login';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -55,6 +57,16 @@ function App() {
           <Route path="admin/users" element={
             <ProtectedRoute>
               <UserManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="admin/boxes" element={
+            <ProtectedRoute>
+              <BoxManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="admin/boxes/:boxId/members" element={
+            <ProtectedRoute>
+              <BoxMemberManagement />
             </ProtectedRoute>
           } />
           <Route path="class/:date" element={

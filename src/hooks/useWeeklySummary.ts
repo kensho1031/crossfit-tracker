@@ -15,7 +15,7 @@ export interface WeeklySummaryData {
 }
 
 export function useWeeklySummary() {
-    const { user } = useAuth();
+    const { user, currentBox } = useAuth();
     const [data, setData] = useState<WeeklySummaryData>({
         workoutCount: 0,
         prCount: 0,
@@ -43,6 +43,7 @@ export function useWeeklySummary() {
                     collection(db, 'calendar_entries'),
                     where('uid', '==', user.uid),
                     where('type', '==', 'wod'),
+                    where('boxId', '==', currentBox?.id || null),
                     where('date', '>=', startStr),
                     where('date', '<=', endStr)
                 );
@@ -53,6 +54,7 @@ export function useWeeklySummary() {
                 const prQuery = query(
                     collection(db, 'prs'),
                     where('uid', '==', user.uid),
+                    where('boxId', '==', currentBox?.id || null),
                     where('date', '>=', startStr),
                     where('date', '<=', endStr)
                 );
@@ -103,7 +105,7 @@ export function useWeeklySummary() {
         };
 
         fetchData();
-    }, [user]);
+    }, [user, currentBox?.id]);
 
     return data;
 }

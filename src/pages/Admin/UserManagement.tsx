@@ -1,25 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, Search, Users as UsersIcon, Mail, Plus, X, Clock } from 'lucide-react';
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
+import { ArrowLeft, Shield, Search, Users as UsersIcon, Mail, Plus, X, Clock, Check, Copy } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useRole } from '../../hooks/useRole';
 import type { UserRole } from '../../types/user';
 import type { Invitation } from '../../types/invitation';
 import { createInvitation, getBoxInvitations } from '../../services/invitationService';
 import { useAuth } from '../../contexts/AuthContext';
+import { getUsersByBox, updateUserBoxAndRole } from '../../services/userService';
 
+// Improved UserData interface with flattened role for UI
 interface UserData {
     uid: string;
+    id: string; // compatibility with getUsersByBox
     email: string;
     displayName: string;
-    role: UserRole;
+    role: UserRole; // This should be the role IN THIS BOX
     boxId?: string | null;
 }
 
 export function UserManagement() {
     const navigate = useNavigate();
-    const { canManageUsers, boxId, loading: roleLoading } = useRole();
+    const { canManageUsers, isSuperAdmin, boxId, currentBox, loading: roleLoading } = useRole();
     const { user: currentUser } = useAuth();
 
     // Data States
@@ -31,6 +34,7 @@ export function UserManagement() {
     const [searchQuery, setSearchQuery] = useState('');
     const [updating, setUpdating] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'users' | 'invitations'>('users');
+    const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
     // Invite Modal States
     const [showInviteModal, setShowInviteModal] = useState(false);
@@ -46,30 +50,47 @@ export function UserManagement() {
         }
 
         const fetchData = async () => {
-            // Wait for boxId if it's loading, or handle null boxId (Super Admin?)
-            // For now assuming Admin has a boxId.
-            // If boxId is null, we might show "Personal Mode" users or nothing.
+            // Determine target BoxId (Super Admin might not have one selected in context, but let's use currentBox)
+            const targetBoxId = boxId || (currentBox ? currentBox.id : null);
 
             try {
                 // 1. Fetch Users
-                if (!boxId) {
+                if (!targetBoxId && !isSuperAdmin) {
                     setUsers([]);
                     setLoading(false);
                     return;
                 }
 
-                const usersQuery = query(collection(db, 'users'), where('boxId', '==', boxId));
-                const usersSnapshot = await getDocs(usersQuery);
-                const relevantUsers = usersSnapshot.docs.map(doc => ({
-                    uid: doc.id,
-                    ...doc.data()
-                } as UserData));
+                let relevantUsers: UserData[] = [];
 
-                setUsers(relevantUsers.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+                if (targetBoxId) {
+                    // Fetch using user_boxes service logic via userService wrapper
+                    const boxUsers = await getUsersByBox(targetBoxId);
+                    // Map to UserData
+                    relevantUsers = boxUsers.map(u => ({
+                        uid: u.id,
+                        id: u.id,
+                        email: u.email,
+                        displayName: u.displayName,
+                        role: u.role || 'member', // Role from user_boxes
+                        boxId: targetBoxId
+                    }));
+                } else if (isSuperAdmin) {
+                    // Super Admin Global View (Legacy)
+                    const usersCollection = collection(db, 'users');
+                    const usersSnapshot = await getDocs(usersCollection);
+                    relevantUsers = usersSnapshot.docs.map(doc => ({
+                        uid: doc.id,
+                        id: doc.id,
+                        ...doc.data()
+                    } as UserData));
+                }
+
+                setUsers(relevantUsers.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '')));
 
                 // 2. Fetch Invitations
-                if (boxId) {
-                    const boxInvitations = await getBoxInvitations(boxId);
+                if (targetBoxId) {
+                    const boxInvitations = await getBoxInvitations(targetBoxId);
                     setInvitations(boxInvitations);
                 }
 
@@ -83,30 +104,34 @@ export function UserManagement() {
         if (!roleLoading) {
             fetchData();
         }
-    }, [canManageUsers, roleLoading, boxId, navigate]);
+    }, [canManageUsers, roleLoading, boxId, currentBox, isSuperAdmin, navigate]);
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Validation
         if (!inviteEmail || !currentUser) return;
-        if (!boxId) {
-            alert('エラー: あなたはBOXに所属していないため、招待を送れません。');
+        const targetBoxId = boxId || (currentBox ? currentBox.id : null);
+
+        if (!targetBoxId && !isSuperAdmin) {
+            alert('エラー: BOXが選択されていません。');
             return;
         }
+
+        const finalBoxId = targetBoxId || 'global';
 
         setInviteStatus('sending');
         try {
             await createInvitation(
                 inviteEmail,
-                boxId,
+                finalBoxId,
                 inviteRole,
                 currentUser.uid,
                 inviteRole === 'visitor' ? visitorDays : undefined
             );
 
             // Refresh invitations
-            const updatedInvites = await getBoxInvitations(boxId);
+            const updatedInvites = await getBoxInvitations(finalBoxId);
             setInvitations(updatedInvites);
 
             setInviteStatus('success');
@@ -128,22 +153,41 @@ export function UserManagement() {
             return;
         }
 
+        const targetBoxId = boxId || (currentBox ? currentBox.id : null);
+        if (!targetBoxId) return;
+
         setUpdating(uid);
         try {
-            const userRef = doc(db, 'users', uid);
-            await updateDoc(userRef, { role: newRole });
+            // New multi-box update
+            await updateUserBoxAndRole(uid, targetBoxId, newRole);
 
             setUsers(users.map(user =>
                 user.uid === uid ? { ...user, role: newRole } : user
             ));
 
             alert('権限を更新しました');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating role:', error);
-            alert('権限の更新に失敗しました');
+            alert(`権限の更新に失敗しました: ${error.message || '不明なエラー'}`);
         } finally {
             setUpdating(null);
         }
+    };
+
+    const handleCopyInviteLink = (invite: Invitation) => {
+        // Construct Link
+        // Assuming app handles ?inviteToken=... or similar.
+        // For now, simpler: Just the token or a dummy URL if routing not ready
+        // Let's use origin + /login?invite=TOKEN
+        const link = `${window.location.origin}/login?invite=${invite.token}`;
+
+        navigator.clipboard.writeText(link).then(() => {
+            setCopiedInviteId(invite.id);
+            setTimeout(() => setCopiedInviteId(null), 2000);
+        }).catch(err => {
+            console.error('Copy failed', err);
+            alert('コピーに失敗しました');
+        });
     };
 
     const getRoleBadgeColor = (role: UserRole) => {
@@ -163,8 +207,8 @@ export function UserManagement() {
     };
 
     const filteredUsers = users.filter(user =>
-        user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (user.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (roleLoading || loading) {
@@ -198,7 +242,7 @@ export function UserManagement() {
                             ユーザー管理
                         </h1>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '0.3rem' }}>
-                            全ユーザーの権限を管理
+                            {currentBox ? `${currentBox.name} のメンバー管理` : '全ユーザー管理'}
                         </div>
                     </div>
                 </div>
@@ -403,7 +447,7 @@ export function UserManagement() {
                                     justifyContent: 'space-between',
                                     alignItems: 'center'
                                 }}>
-                                    <div>
+                                    <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.3rem' }}>
                                             {invite.email}
                                         </div>
@@ -426,14 +470,33 @@ export function UserManagement() {
                                             )}
                                         </div>
                                     </div>
-                                    <div style={{
-                                        padding: '4px 12px',
-                                        borderRadius: '12px',
-                                        fontSize: '0.8rem',
-                                        background: invite.status === 'pending' ? 'rgba(255, 193, 7, 0.2)' : 'rgba(76, 175, 80, 0.2)',
-                                        color: invite.status === 'pending' ? '#FFC107' : '#4CAF50'
-                                    }}>
-                                        {invite.status === 'pending' ? '招待中' : '登録済み'}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                        <button
+                                            onClick={() => handleCopyInviteLink(invite)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '5px',
+                                                padding: '6px 12px',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--color-primary)',
+                                                background: 'transparent',
+                                                color: 'var(--color-primary)',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem'
+                                            }}
+                                            title="招待リンクをコピー"
+                                        >
+                                            {copiedInviteId === invite.id ? <Check size={16} /> : <Copy size={16} />}
+                                            {copiedInviteId === invite.id ? 'Copied' : 'Link'}
+                                        </button>
+                                        <div style={{
+                                            padding: '4px 12px',
+                                            borderRadius: '12px',
+                                            fontSize: '0.8rem',
+                                            background: invite.status === 'pending' ? 'rgba(255, 193, 7, 0.2)' : 'rgba(76, 175, 80, 0.2)',
+                                            color: invite.status === 'pending' ? '#FFC107' : '#4CAF50'
+                                        }}>
+                                            {invite.status === 'pending' ? '招待中' : '登録済み'}
+                                        </div>
                                     </div>
                                 </div>
                             ))

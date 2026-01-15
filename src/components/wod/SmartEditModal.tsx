@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { X, Save, Dumbbell, Trophy, Trash2 } from 'lucide-react';
 import { getCategoriesByExercises } from '../../utils/workoutUtils';
 import type { DraftLog, Exercise } from '../../types/draftLog';
@@ -17,6 +18,7 @@ interface SmartEditModalProps {
 export function SmartEditModal({ draftLog, onClose, onSave }: SmartEditModalProps) {
     const [userInputs, setUserInputs] = useState(draftLog.userInputs || {});
     const [saving, setSaving] = useState(false);
+    const { currentBox } = useAuth();
 
     // PR Integration State
     const [knownExercises, setKnownExercises] = useState<ExerciseMaster[]>([]);
@@ -152,6 +154,7 @@ export function SmartEditModal({ draftLog, onClose, onSave }: SmartEditModalProp
                 exercises,
                 categories,
                 analysisConfidence: draftLog.analyzedData.confidence || 0,
+                boxId: currentBox?.id || null,
                 updatedAt: serverTimestamp()
             };
 

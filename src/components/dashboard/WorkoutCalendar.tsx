@@ -6,6 +6,7 @@ import { db } from '../../firebase/config';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { ChevronLeft, ChevronRight, Activity, Trash2 } from 'lucide-react';
 import { WeeklySummaryDetailed } from './WeeklySummaryDetailed';
+import { TodayClassCard } from './TodayClassCard';
 
 interface LogData {
     id: string;
@@ -17,32 +18,80 @@ interface LogData {
 }
 
 export function WorkoutCalendar() {
-    const { user } = useAuth();
+    const { user, currentBox } = useAuth();
     const [value, onChange] = useState(new Date());
     const [logs, setLogs] = useState<{ [key: string]: LogData[] }>({});
 
     useEffect(() => {
         if (!user) return;
 
-        const q = query(
+        // Query for User's WOD logs
+        const wodQuery = query(
             collection(db, 'calendar_entries'),
             where('uid', '==', user.uid),
-            where('type', '==', 'wod')
+            where('type', '==', 'wod'),
+            where('boxId', '==', currentBox?.id || null)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const logMap: { [key: string]: LogData[] } = {};
+        // Query for Box's Classes (Shared)
+        const classQuery = query(
+            collection(db, 'calendar_entries'),
+            where('type', '==', 'class'),
+            where('boxId', '==', currentBox?.id || null)
+        );
+
+        const unsubWod = onSnapshot(wodQuery, (snapshot) => {
+            const wodMap: { [key: string]: LogData[] } = {};
             snapshot.docs.forEach(doc => {
                 const data = doc.data() as Omit<LogData, 'id'>;
-                const dateKey = data.date;
-                if (!logMap[dateKey]) logMap[dateKey] = [];
-                logMap[dateKey].push({ id: doc.id, ...data } as LogData);
+                if (!wodMap[data.date]) wodMap[data.date] = [];
+                wodMap[data.date].push({ id: doc.id, ...data } as LogData);
             });
-            setLogs(logMap);
+
+            // Need to merge with existing classes or just update state carefully
+            setLogs(prev => {
+                const updated = { ...prev };
+                // Clear existing WODs for this new snapshot
+                Object.keys(updated).forEach(date => {
+                    updated[date] = updated[date].filter(l => l.type !== 'wod');
+                });
+                // Add new WODs
+                Object.entries(wodMap).forEach(([date, items]) => {
+                    if (!updated[date]) updated[date] = [];
+                    updated[date].push(...items);
+                });
+                return updated;
+            });
         });
 
-        return () => unsubscribe();
-    }, [user]);
+        const unsubClass = onSnapshot(classQuery, (snapshot) => {
+            const classMap: { [key: string]: LogData[] } = {};
+            snapshot.docs.forEach(doc => {
+                const data = doc.data() as Omit<LogData, 'id'>;
+                if (!classMap[data.date]) classMap[data.date] = [];
+                classMap[data.date].push({ id: doc.id, ...data } as LogData);
+            });
+
+            setLogs(prev => {
+                const updated = { ...prev };
+                // Clear existing classes
+                Object.keys(updated).forEach(date => {
+                    updated[date] = updated[date].filter(l => l.type !== 'class');
+                });
+                // Add new classes
+                Object.entries(classMap).forEach(([date, items]) => {
+                    if (!updated[date]) updated[date] = [];
+                    updated[date].push(...items);
+                });
+                return updated;
+            });
+        });
+
+        return () => {
+            unsubWod();
+            unsubClass();
+        };
+    }, [user, currentBox?.id]);
 
     const tileContent = ({ date, view }: { date: Date, view: string }) => {
         if (view === 'month') {
@@ -69,6 +118,7 @@ export function WorkoutCalendar() {
         }
     };
 
+
     // Find logs for selected date
     const localSelectedDate = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
     const selectedDateString = localSelectedDate.toISOString().split('T')[0];
@@ -76,14 +126,13 @@ export function WorkoutCalendar() {
 
     return (
         <>
-            <WeeklySummaryDetailed />
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
                 <div className="calendar-container" style={{
                     background: 'var(--color-surface)',
                     borderRadius: 'var(--border-radius-lg)',
                     padding: '1.5rem',
-                    boxShadow: 'var(--shadow-sm)'
+                    boxShadow: 'var(--shadow-sm)',
+                    height: 'fit-content'
                 }}>
                     <Calendar
                         onChange={(val) => onChange(val as Date)}
@@ -100,58 +149,69 @@ export function WorkoutCalendar() {
                 </div>
 
                 <div style={{
-                    background: 'var(--color-surface)',
-                    borderRadius: 'var(--border-radius-lg)',
-                    padding: '2rem',
-                    boxShadow: 'var(--shadow-sm)'
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-                        <Activity size={20} color="var(--color-primary)" />
-                        <h3 style={{ fontSize: '1.2rem', margin: 0 }}>{selectedDateString} の記録</h3>
-                    </div>
+                    {/* 1. Class Card for Selected Date */}
+                    <TodayClassCard date={value} />
 
-                    {dailyLogs.length > 0 ? (
-                        <div style={{ display: 'grid', gap: '1rem' }}>
-                            {dailyLogs.map(log => (
-                                <div key={log.id} style={{
-                                    padding: '1rem',
-                                    background: 'var(--color-bg)',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--color-border)',
-                                    marginBottom: '1rem'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-                                        <button
-                                            onClick={() => handleDelete(log.id)}
-                                            style={{
-                                                background: 'rgba(255,0,0,0.1)',
-                                                border: '1px solid rgba(255,0,0,0.3)',
-                                                borderRadius: '6px',
-                                                color: '#ff6b6b',
-                                                cursor: 'pointer',
-                                                padding: '6px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                            title="削除"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                    {/* 2. User Logs for Selected Date */}
+                    {dailyLogs.length > 0 && (
+                        <div style={{
+                            background: 'var(--color-surface)',
+                            borderRadius: 'var(--border-radius-lg)',
+                            padding: '2rem',
+                            boxShadow: 'var(--shadow-sm)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+                                <Activity size={20} color="var(--color-primary)" />
+                                <h3 style={{ fontSize: '1.2rem', margin: 0 }}>{selectedDateString} の記録</h3>
+                            </div>
+
+                            <div style={{ display: 'grid', gap: '1rem' }}>
+                                {dailyLogs.map(log => (
+                                    <div key={log.id} style={{
+                                        padding: '1rem',
+                                        background: 'var(--color-bg)',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--color-border)',
+                                        marginBottom: '1rem'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+                                            <button
+                                                onClick={() => handleDelete(log.id)}
+                                                style={{
+                                                    background: 'rgba(255,0,0,0.1)',
+                                                    border: '1px solid rgba(255,0,0,0.3)',
+                                                    borderRadius: '6px',
+                                                    color: '#ff6b6b',
+                                                    cursor: 'pointer',
+                                                    padding: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                                title="削除"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                        {log.photoUrl && (
+                                            <img src={log.photoUrl} alt="WOD" style={{ width: '100%', borderRadius: '4px', marginBottom: '0.5rem' }} />
+                                        )}
+                                        <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', margin: 0 }}>{log.raw_text}</p>
                                     </div>
-                                    {log.photoUrl && (
-                                        <img src={log.photoUrl} alt="WOD" style={{ width: '100%', borderRadius: '4px', marginBottom: '0.5rem' }} />
-                                    )}
-                                    <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', margin: 0 }}>{log.raw_text}</p>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    ) : (
-                        <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '2rem' }}>ワークアウトの記録はありません。</p>
                     )}
                 </div>
+            </div>
 
-                <style>{`
+            <WeeklySummaryDetailed />
+
+            <style>{`
                 .custom-calendar {
                     width: 100% !important;
                     border: none !important;
@@ -257,7 +317,6 @@ export function WorkoutCalendar() {
                     aspect-ratio: 1 / 1;
                 }
             `}</style>
-            </div>
         </>
     );
 }

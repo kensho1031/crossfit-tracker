@@ -1,67 +1,48 @@
-import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import type { UserRole } from '../types/user';
 
 export function useRole() {
-    const { user } = useAuth();
-    const [role, setRole] = useState<UserRole>('member');
-    const [boxId, setBoxId] = useState<string | null>(null);
-    const [visitorExpiresAt, setVisitorExpiresAt] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { user, userStats, currentBox, memberships, loading: authLoading } = useAuth();
 
-    useEffect(() => {
-        const fetchRole = async () => {
-            if (!user) {
-                setRole('member');
-                setBoxId(null);
-                setVisitorExpiresAt(null);
-                setLoading(false);
-                return;
-            }
+    // Developer Check (Global System Owner)
+    const developerUid = 'sljuwV64DYb9AnZJ8WxBmKRblYz1';
+    const isDeveloper = user?.uid === developerUid;
+    const isSuperAdmin = isDeveloper; // Legacy alias for compatibility
 
-            try {
-                const userRef = doc(db, 'users', user.uid);
-                const userDoc = await getDoc(userRef);
+    // Determine Role in Current Box
+    let roleInCurrentBox: string = 'member';
 
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    setRole(userData.role || 'member');
-                    setBoxId(userData.boxId || null);
-                    setVisitorExpiresAt(userData.visitorExpiresAt || null);
-                } else {
-                    setRole('member');
-                    setBoxId(null);
-                    setVisitorExpiresAt(null);
-                }
-            } catch (error) {
-                console.error('Error fetching user role:', error);
-                setRole('member');
-                setBoxId(null);
-                setVisitorExpiresAt(null);
-            } finally {
-                setLoading(false);
-            }
-        };
+    if (currentBox) {
+        const membership = memberships.find((m) => m.boxId === currentBox.id);
+        if (membership) {
+            roleInCurrentBox = membership.role;
+        } else if (userStats?.role && userStats.boxId === currentBox.id) {
+            // Legacy Fallback
+            roleInCurrentBox = userStats.role;
+        }
+    } else {
+        roleInCurrentBox = 'member';
+    }
 
-        fetchRole();
-    }, [user]);
-
-    const isExpired = role === 'visitor' && visitorExpiresAt && new Date(visitorExpiresAt) < new Date();
+    const isExpired = false;
 
     return {
-        role,
-        boxId,
-        loading,
-        visitorExpiresAt,
-        isAdmin: role === 'admin',
-        isCoach: role === 'coach' || role === 'admin',
-        isMember: role === 'member',
-        isVisitor: role === 'visitor',
+        role: roleInCurrentBox, // Role in the CURRENT active box
+        currentBox, // The full box object
+        boxId: currentBox?.id || (memberships.length > 0 ? memberships[0].boxId : null),
+        loading: authLoading,
+        isDeveloper,
+        isSuperAdmin, // Legacy support
+
+        isAdmin: roleInCurrentBox === 'admin' || isDeveloper,
+        isCoach: roleInCurrentBox === 'coach' || roleInCurrentBox === 'admin' || isDeveloper,
+        isMember: roleInCurrentBox === 'member',
+        isVisitor: roleInCurrentBox === 'visitor',
         isVisitorExpired: isExpired,
-        canManageClasses: (role === 'admin' || role === 'coach') && !!boxId && !isExpired,
-        canManageUsers: role === 'admin' && !!boxId && !isExpired,
-        canAccessBoxData: !!boxId && !isExpired,
+        visitorExpiresAt: null,
+
+        canManageBoxes: isDeveloper,
+        canManageClasses: (roleInCurrentBox === 'admin' || roleInCurrentBox === 'coach' || isDeveloper) && (!!currentBox || isDeveloper) && !isExpired,
+        canManageUsers: (roleInCurrentBox === 'admin' || isDeveloper) && (!!currentBox || isDeveloper) && !isExpired,
+        canAccessBoxData: (!!currentBox || isDeveloper) && !isExpired,
     };
 }

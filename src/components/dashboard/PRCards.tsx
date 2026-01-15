@@ -15,7 +15,7 @@ interface PRDisplay extends PR {
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export function PRCards() {
-    const { user } = useAuth();
+    const { user, currentBox } = useAuth();
     const [personalBests, setPersonalBests] = useState<PRDisplay[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPR, setSelectedPR] = useState<Partial<PR> | undefined>(undefined);
@@ -72,7 +72,7 @@ export function PRCards() {
     const loadPRs = async () => {
         if (!user) return;
         try {
-            const allPRs = await PRService.getAllUserPRs(user.uid);
+            const allPRs = await PRService.getAllUserPRs(user.uid, currentBox?.id || null);
 
             const bestsMap = new Map<string, PR>();
 
@@ -146,7 +146,7 @@ export function PRCards() {
 
     useEffect(() => {
         loadPRs();
-    }, [user]);
+    }, [user, currentBox?.id]);
 
     const handleAddClick = () => {
         setSelectedPR(undefined);
@@ -267,8 +267,10 @@ export function PRCards() {
                 /* Mobile Optimizations */
                 @media (max-width: 600px) {
                     .pr-grid-container {
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 0.5rem;
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr !important; /* Force 2 columns */
+                        gap: 0.5rem !important;
+                        width: 100% !important;
                     }
 
                     .pr-card {
@@ -294,32 +296,49 @@ export function PRCards() {
                     .pr-card-header {
                         margin-bottom: 0.25rem !important;
                     }
+
+                    /* Mobile-specific header adjustments */
+                    .pr-section-title {
+                        font-size: 0.9rem !important;
+                        letter-spacing: 0.02em !important;
+                    }
+
+                    .pr-add-button {
+                        padding: 0.4rem 0.75rem !important;
+                    }
+
+                    .pr-add-button-text {
+                        display: none; /* Hide text on mobile, show icon only */
+                    }
                 }
             `}</style>
 
             {/* Header / Controls */}
             <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <Trophy size={24} className="text-primary" />
-                        <h2 style={{
-                            fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--font-heading)',
-                            letterSpacing: 'var(--letter-spacing-tight)', margin: 0
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                        <Trophy size={20} className="text-primary" style={{ flexShrink: 0 }} />
+                        <h2 className="pr-section-title" style={{
+                            fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)',
+                            letterSpacing: 'var(--letter-spacing-tight)', margin: 0,
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                         }}>
                             PERSONAL RECORDS
                         </h2>
                     </div>
                     <button
                         onClick={handleAddClick}
+                        className="pr-add-button"
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
                             background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)',
                             padding: '0.5rem 1rem', borderRadius: '8px', color: '#fff',
-                            cursor: 'pointer', transition: 'all 0.2s'
+                            cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
+                            whiteSpace: 'nowrap'
                         }}
                     >
                         <Plus size={18} />
-                        <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>記録を追加</span>
+                        <span className="pr-add-button-text" style={{ fontSize: '0.9rem', fontWeight: 600 }}>記録を追加</span>
                     </button>
                 </div>
 

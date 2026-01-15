@@ -34,8 +34,7 @@ export const EXERCISE_MASTER_DATA: ExerciseMaster[] = [
     // --- Cardio / Time Based ---
     { id: 'row_500m', name: 'Row 500m', aliases: [], category: 'monostructural', defaultUnit: 'sec', measureType: 'time' },
     { id: 'run_1km', name: 'Run 1km', aliases: [], category: 'monostructural', defaultUnit: 'sec', measureType: 'time' },
-    { id: 'assault_bike_1km', name: 'Assault Bike 1km', aliases: [], category: 'monostructural', defaultUnit: 'sec', measureType: 'time' },
-    { id: 'bike_time', name: 'Bike 1000m', aliases: ['Assault Bike'], category: 'monostructural', defaultUnit: 'sec', measureType: 'time' },
+    { id: 'bike_1000m', name: 'Bike 1000m', aliases: ['Assault Bike', 'Bike'], category: 'monostructural', defaultUnit: 'sec', measureType: 'time' },
 
     // --- Other ---
     { id: 'thruster', name: 'Thruster', aliases: [], category: 'weightlifting', defaultUnit: 'kg', measureType: 'weight' },
@@ -60,5 +59,5 @@ export const SUGGESTED_EXERCISES = [
     'squat_snatch',
     'thruster',
     'row_500m',
-    'bike_time'
+    'bike_1000m'
 ];

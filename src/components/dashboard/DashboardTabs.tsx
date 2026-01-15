@@ -1,4 +1,5 @@
 import { LayoutDashboard, Calendar, History, TrendingUp, Dumbbell } from 'lucide-react';
+import './DashboardTabs.css';
 
 interface TabProps {
     activeTab: string;
@@ -15,17 +16,7 @@ export function DashboardTabs({ activeTab, setActiveTab }: TabProps) {
     ];
 
     return (
-        <div style={{
-            display: 'flex',
-            gap: '1rem',
-            marginBottom: '2rem',
-            borderBottom: '1px solid var(--color-border)',
-            paddingBottom: '1rem',
-            paddingTop: '10px',
-            paddingLeft: '1.5rem',
-            paddingRight: '1.5rem',
-            overflowX: 'auto'
-        }}>
+        <div className="dashboard-tabs-container">
             {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -33,26 +24,10 @@ export function DashboardTabs({ activeTab, setActiveTab }: TabProps) {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            background: isActive ? 'var(--color-surface)' : 'transparent',
-                            color: isActive ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                            border: isActive ? '1px solid var(--color-accent)' : '1px solid transparent',
-                            borderRadius: '20px',
-                            padding: '0.5rem 1rem',
-                            fontSize: '0.85rem',
-                            fontWeight: isActive ? 600 : 500,
-                            letterSpacing: 'var(--letter-spacing-wide)',
-                            boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
-                            transition: 'all 0.3s ease',
-                            flexShrink: 0,
-                            cursor: 'pointer'
-                        }}
+                        className={`tab-button ${isActive ? 'active' : ''}`}
                     >
-                        <Icon size={16} />
-                        {tab.label}
+                        <Icon size={isActive ? 20 : 18} style={{ transition: 'all 0.3s' }} />
+                        <span>{tab.label}</span>
                     </button>
                 );
             })}

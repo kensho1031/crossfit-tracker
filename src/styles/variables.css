@@ -14,8 +14,8 @@
   --color-neon: #00FFFF;
 
   /* Typography - Pro Specification */
-  --font-heading: 'Bebas Neue', 'Noto Sans JP', sans-serif;
-  --font-body: 'Roboto', 'Noto Sans JP', sans-serif;
+  --font-heading: 'Inter', 'Noto Sans JP', sans-serif;
+  --font-body: 'Inter', 'Noto Sans JP', sans-serif;
   --letter-spacing-tight: -0.02em;
   --letter-spacing-normal: 0em;
   --letter-spacing-wide: 0.05em;

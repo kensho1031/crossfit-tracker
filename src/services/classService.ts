@@ -29,6 +29,18 @@ export async function saveDailyClass(dailyClass: DailyClass, boxId?: string | nu
 
     // Use setDoc with merge: true to update existing or create new
     await setDoc(docRef, dataToSave, { merge: true });
+
+    // --- Calendar Integration (Formal Specification) ---
+    // Save to calendar_entries as type 'class' for visibility in member calendars
+    const calRef = doc(db, 'calendar_entries', `class-${dailyClass.id}-${boxId || 'root'}`);
+    await setDoc(calRef, {
+        date: dailyClass.date,
+        title: dailyClass.title,
+        type: 'class',
+        boxId: boxId || null,
+        updatedAt: serverTimestamp(),
+        // Note: No 'uid' here because this is a public class entry for the BOX members
+    }, { merge: true });
 }
 
 /**

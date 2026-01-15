@@ -13,4 +13,5 @@ export interface Invitation {
     invitedBy: string; // UID of the admin who invited
     createdAt: string;
     expiresAt: string; // Logic expiration (e.g. 7 days for invite validity)
+    email_log?: { sentAt: string; success: boolean }[];
 }

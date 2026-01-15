@@ -4,6 +4,7 @@ import { db } from '../firebase/config';
 import { collection, addDoc, deleteDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { ImageUploader } from '../components/log/ImageUploader';
 import { Save, Calendar, AlertCircle, History, Edit, Trash2, X } from 'lucide-react';
+import { ScanWODButton } from '../components/dashboard/ScanWODButton';
 
 import { getCategoriesByExercises } from '../utils/workoutUtils';
 
@@ -22,7 +23,7 @@ interface LogData {
 }
 
 export function WorkoutLog() {
-    const { user } = useAuth();
+    const { user, currentBox } = useAuth();
     const [loading, setLoading] = useState(false);
 
     // Form State
@@ -51,6 +52,7 @@ export function WorkoutLog() {
             collection(db, 'calendar_entries'),
             where('uid', '==', user.uid),
             where('type', '==', 'wod'),
+            where('boxId', '==', currentBox?.id || null),
             orderBy('createdAt', 'desc'),
             limit(5)
         );
@@ -95,6 +97,7 @@ export function WorkoutLog() {
                 condition,
                 exercises,
                 categories,
+                boxId: currentBox?.id || null,
                 updatedAt: serverTimestamp()
             };
 
@@ -162,9 +165,25 @@ export function WorkoutLog() {
     return (
         <div style={{ minHeight: '100vh', background: 'var(--color-bg)', paddingBottom: '4rem' }}>
             <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1.5rem 1.5rem 2rem 1.5rem' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '2rem', fontFamily: 'var(--font-heading)', fontSize: '1.8rem', letterSpacing: '1px' }}>
-                    {editingId ? '📝 EDIT LOG' : '💪 WORKOUT LOG'}
-                </h2>
+                <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                    <h2 style={{
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '2.5rem',
+                        fontWeight: 900,
+                        letterSpacing: '0.2em',
+                        background: 'linear-gradient(to right, #fff, #a5a5a5)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textTransform: 'uppercase',
+                        margin: '0 0 1rem 0',
+                        textShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}>
+                        {editingId ? 'Edit Log' : 'Workout Log'}
+                    </h2>
+                    <div style={{ maxWidth: '300px', margin: '0 auto' }}>
+                        <ScanWODButton />
+                    </div>
+                </div>
 
                 <div style={{ display: 'grid', gap: '1.2rem' }}>
 

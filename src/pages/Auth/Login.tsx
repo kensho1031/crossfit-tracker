@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
@@ -6,16 +6,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { LogIn } from 'lucide-react';
 
 export function Login() {
-    const { user, signInWithGoogle, loginAnonymously, loading } = useAuth();
+    const { user, signInWithGoogle, loginAnonymously, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+    const [loginError, setLoginError] = useState<string | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
-        if (user && !loading) {
+        if (user && !authLoading) {
             navigate('/');
         }
-    }, [user, loading, navigate]);
+    }, [user, authLoading, navigate]);
 
-    if (loading) return null; // Or a spinner, but AuthContext has global loader
+    const handleGoogleSignIn = async (method: 'popup' | 'redirect') => {
+        setLoginError(null);
+        setIsProcessing(true);
+        try {
+            await signInWithGoogle(method);
+        } catch (err: any) {
+            if (err.message === 'INVITATION_REQUIRED') {
+                setLoginError('このメールアドレスは招待されていません。管理者に連絡してください。');
+            } else {
+                setLoginError('ログイン中にエラーが発生しました。もう一度お試しください。');
+            }
+            console.error(err);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    if (authLoading) return null;
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -29,14 +48,20 @@ export function Login() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
+                    {loginError && (
+                        <div className="p-3 text-sm bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-center">
+                            {loginError}
+                        </div>
+                    )}
                     <div className="flex flex-col gap-2">
                         <Button
                             size="lg"
                             className="w-full gap-2 text-lg font-semibold"
-                            onClick={() => signInWithGoogle('popup')}
+                            onClick={() => handleGoogleSignIn('popup')}
+                            disabled={isProcessing}
                         >
                             <LogIn className="h-5 w-5" />
-                            Sign in with Google
+                            {isProcessing ? 'Connecting...' : 'Sign in with Google'}
                         </Button>
                         <div className="relative my-2">
                             <div className="absolute inset-0 flex items-center">
@@ -52,7 +77,8 @@ export function Login() {
                             variant="outline"
                             size="lg"
                             className="w-full gap-2 text-lg"
-                            onClick={() => signInWithGoogle('redirect')}
+                            onClick={() => handleGoogleSignIn('redirect')}
+                            disabled={isProcessing}
                         >
                             Sign in via Redirect
                         </Button>
@@ -71,6 +97,7 @@ export function Login() {
                             size="lg"
                             className="w-full gap-2 text-lg border-2 border-dashed border-muted hover:border-primary/50"
                             onClick={() => loginAnonymously()}
+                            disabled={isProcessing}
                         >
                             Guest Login (Tester)
                         </Button>

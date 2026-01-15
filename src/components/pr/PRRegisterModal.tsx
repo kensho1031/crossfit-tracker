@@ -19,7 +19,7 @@ interface PRRegisterModalProps {
 }
 
 export function PRRegisterModal({ isOpen, onClose, onSuccess, initialData }: PRRegisterModalProps) {
-    const { user } = useAuth();
+    const { user, currentBox } = useAuth();
     const [searchTerm, setSearchTerm] = useState(initialData?.exerciseName || '');
     const [selectedExercise, setSelectedExercise] = useState<ExerciseMaster | null>(null);
     const [searchResults, setSearchResults] = useState<ExerciseMaster[]>([]);
@@ -124,7 +124,8 @@ export function PRRegisterModal({ isOpen, onClose, onSuccess, initialData }: PRR
                 unit,
                 date,
                 source: 'manual',
-                note
+                note,
+                boxId: currentBox?.id || null
             });
             onSuccess();
             onClose();
@@ -255,13 +256,13 @@ export function PRRegisterModal({ isOpen, onClose, onSuccess, initialData }: PRR
                             </div>
                         )}
 
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                             <label style={{ display: 'block', fontSize: '0.875rem', color: '#888', marginBottom: '0.5rem' }}>単位 (UNIT)</label>
                             {isTime ? (
                                 <div style={{
-                                    width: '100%', padding: '0.5rem', height: '43.2px', background: '#111', border: '1px solid #333',
-                                    borderRadius: '8px', color: '#ccc', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    boxSizing: 'border-box'
+                                    width: '100%', padding: '0.5rem', flex: 1, background: '#111', border: '1px solid #333',
+                                    borderRadius: '8px', color: '#888', fontSize: '1.2rem', fontWeight: 700, display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box'
                                 }}>
                                     Time
                                 </div>

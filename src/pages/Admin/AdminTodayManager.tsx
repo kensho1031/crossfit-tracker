@@ -1,23 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Calendar, Trash2, Dumbbell, Flame, Timer, Zap, Plus } from 'lucide-react';
 import { saveDailyClass, getDailyClass } from '../../services/classService';
+import { getAllBoxes } from '../../services/boxService';
 import type { DailyClass, ClassSection, SectionType, ScoreType } from '../../types/class';
+import type { Box } from '../../types/box';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../hooks/useRole';
 import { WOD_PRESETS } from '../../constants/wods';
 
 export function AdminTodayManager() {
     const navigate = useNavigate();
-    const { canManageClasses, loading: roleLoading, boxId } = useRole();
+    const { canManageClasses, loading: roleLoading, boxId, isSuperAdmin } = useRole();
     const today = new Date().toISOString().split('T')[0];
-    const { user: authUser } = useAuth(); // Get actual user from context
+    const { user: authUser } = useAuth();
     const [selectedDate, setSelectedDate] = useState(today);
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [title, setTitle] = useState('Daily Workout');
     const [sections, setSections] = useState<ClassSection[]>([]);
+
+    // Super Admin: BOX selection
+    const [availableBoxes, setAvailableBoxes] = useState<Box[]>([]);
+    const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+    const [boxesLoading, setBoxesLoading] = useState(false);
+    const [draftLoaded, setDraftLoaded] = useState(false);
+    const saveTimeoutRef = useRef<number | null>(null);
 
     // Preset Modal State
     const [showPresetModal, setShowPresetModal] = useState(false);
@@ -36,22 +45,109 @@ export function AdminTodayManager() {
         { id: generateId(), type: 'wod', title: 'WOD', content: '', note: '' }
     ];
 
+    // Load available boxes for Super Admin
+    useEffect(() => {
+        if (isSuperAdmin) {
+            const loadBoxes = async () => {
+                setBoxesLoading(true);
+                try {
+                    const boxes = await getAllBoxes();
+                    setAvailableBoxes(boxes);
+
+                    // Try to restore last selected box from localStorage
+                    const lastSelectedBox = localStorage.getItem('superadmin_selected_box');
+                    if (lastSelectedBox && boxes.find(b => b.id === lastSelectedBox)) {
+                        setSelectedBoxId(lastSelectedBox);
+                    } else if (boxes.length > 0) {
+                        setSelectedBoxId(boxes[0].id);
+                    }
+                } catch (error) {
+                    console.error('Failed to load boxes:', error);
+                } finally {
+                    setBoxesLoading(false);
+                }
+            };
+            loadBoxes();
+        }
+    }, [isSuperAdmin]);
+
+    // Save selected box to localStorage
+    useEffect(() => {
+        if (selectedBoxId) {
+            localStorage.setItem('superadmin_selected_box', selectedBoxId);
+        }
+    }, [selectedBoxId]);
+
+    // Determine which boxId to use for operations
+    const effectiveBoxId = isSuperAdmin ? selectedBoxId : boxId;
+
+    // localStorage key for draft
+    const DRAFT_KEY = `class_draft_${selectedDate}_${effectiveBoxId}`;
+
+    // Load draft from localStorage on mount
+    useEffect(() => {
+        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        if (savedDraft && !draftLoaded) {
+            try {
+                const draft = JSON.parse(savedDraft);
+                setTitle(draft.title || 'Daily Workout');
+                setSections(draft.sections || DEFAULT_TEMPLATE);
+                setDraftLoaded(true);
+                console.log('📝 下書きを復元しました');
+            } catch (e) {
+                console.error('Failed to load draft:', e);
+            }
+        }
+    }, [DRAFT_KEY, draftLoaded]);
+
+    // Auto-save to localStorage (debounced)
+    useEffect(() => {
+        if (!draftLoaded) return; // Don't save until initial load is complete
+
+        // Clear existing timeout
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        // Set new timeout for auto-save
+        saveTimeoutRef.current = window.setTimeout(() => {
+            const draft = {
+                title,
+                sections,
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+            console.log('💾 下書きを自動保存しました');
+        }, 1000); // Save after 1 second of inactivity
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [title, sections, DRAFT_KEY, draftLoaded]);
+
     useEffect(() => {
         if (!roleLoading && !canManageClasses) {
             navigate('/');
             return;
         }
-        if (!roleLoading && boxId) {
+        if (!roleLoading && effectiveBoxId) {
             loadClassData(selectedDate);
         }
     }, [selectedDate, canManageClasses, roleLoading, navigate, boxId]);
 
     const loadClassData = async (date: string) => {
+        if (!effectiveBoxId) {
+            console.warn('Attempted to load class without boxId');
+            setLoading(false);
+            return;
+        }
         setLoading(true);
-        setMessage(''); // Clear previous messages
+        setMessage('');
         try {
-            console.log('Fetching class for date:', date, 'Box:', boxId);
-            const data = await getDailyClass(date, boxId);
+            console.log('Fetching class for date:', date, 'Box:', effectiveBoxId);
+            const data = await getDailyClass(date, effectiveBoxId);
             if (data) {
                 setTitle(data.title || '');
                 if (data.sections && data.sections.length > 0) {
@@ -83,10 +179,14 @@ export function AdminTodayManager() {
     };
 
     const handleSave = async () => {
+        if (!effectiveBoxId) {
+            setMessage('Error: No BOX selected. Cannot save class.');
+            return;
+        }
         setLoading(true);
         setMessage('');
         try {
-            console.log('Saving class data:', { id: selectedDate, sections, boxId });
+            console.log('Saving class data:', { id: selectedDate, sections, boxId: effectiveBoxId });
             const classData: DailyClass = {
                 id: selectedDate,
                 date: selectedDate,
@@ -101,7 +201,10 @@ export function AdminTodayManager() {
                 updatedAt: {} as any
             };
 
-            await saveDailyClass(classData, boxId);
+            await saveDailyClass(classData, effectiveBoxId);
+            // Clear draft after successful save
+            localStorage.removeItem(DRAFT_KEY);
+            console.log('🗑️ 下書きをクリアしました');
             setMessage('保存しました！');
             setTimeout(() => setMessage(''), 3000);
         } catch (error: any) {
@@ -387,6 +490,40 @@ export function AdminTodayManager() {
 
             {/* Top Config Row */}
             <div className="config-grid-container">
+                {/* Super Admin: BOX Selection */}
+                {isSuperAdmin && (
+                    <div className="config-item" style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--color-primary)' }}>
+                            🏢 Select BOX (Super Admin)
+                        </label>
+                        <select
+                            value={selectedBoxId || ''}
+                            onChange={(e) => setSelectedBoxId(e.target.value)}
+                            disabled={boxesLoading}
+                            style={{
+                                padding: '0.8rem', borderRadius: '8px',
+                                border: '2px solid var(--color-primary)',
+                                background: 'var(--color-bg)',
+                                color: 'var(--color-text)',
+                                fontSize: '1rem',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            {boxesLoading ? (
+                                <option>Loading BOXes...</option>
+                            ) : availableBoxes.length === 0 ? (
+                                <option>No BOXes available</option>
+                            ) : (
+                                availableBoxes.map(box => (
+                                    <option key={box.id} value={box.id}>
+                                        {box.name}
+                                    </option>
+                                ))
+                            )}
+                        </select>
+                    </div>
+                )}
+
                 <div className="config-item">
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.4rem', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
                         <Calendar size={14} color="var(--color-primary)" /> Target Date
