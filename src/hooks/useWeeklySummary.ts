@@ -73,7 +73,21 @@ export function useWeeklySummary() {
                     if (wod.source === 'scan') scanCount++;
                     else if (wod.source === 'log') logCount++;
 
-                    // Exercises (exclude 'other')
+                    // 1. Process structured sections (new format)
+                    if (wod.sections && Array.isArray(wod.sections)) {
+                        wod.sections.forEach((section: any) => {
+                            // Extract exercises from section content if possible, 
+                            // though in this app exercises are often stored at the root of the wod record 
+                            // during the scanning process.
+                            // However, categories might be more relevant.
+                            if (section.category) {
+                                categoryRatio[section.category] = (categoryRatio[section.category] || 0) + 1;
+                                totalCategories++;
+                            }
+                        });
+                    }
+
+                    // 2. Process root level exercises/categories (common in both formats)
                     const exercises: string[] = wod.exercises || [];
                     exercises.forEach(ex => {
                         if (ex.toLowerCase() !== 'other') {
@@ -81,11 +95,19 @@ export function useWeeklySummary() {
                         }
                     });
 
-                    // Categories
                     const categories: string[] = wod.categories || [];
                     categories.forEach(cat => {
                         categoryRatio[cat] = (categoryRatio[cat] || 0) + 1;
                         totalCategories++;
+                    });
+
+                    // 3. Special handling for legacy fields if they exist and are not in categories yet
+                    ['warmup', 'strength', 'wod'].forEach(key => {
+                        const legacy = wod[key];
+                        if (legacy && legacy.category && !categories.includes(legacy.category)) {
+                            categoryRatio[legacy.category] = (categoryRatio[legacy.category] || 0) + 1;
+                            totalCategories++;
+                        }
                     });
                 });
 

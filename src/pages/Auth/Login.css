@@ -1,0 +1,186 @@
+.login-page-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #050505;
+    position: relative;
+    overflow: hidden;
+    padding: 1.5rem;
+}
+
+.login-bg-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(0, 188, 212, 0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.login-card-luxury {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(15, 15, 15, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 188, 212, 0.2);
+    border-radius: 24px;
+    padding: 2.5rem;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.login-header-premium {
+    margin-bottom: 2.5rem;
+}
+
+.login-brand-logo {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.login-title-premium {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin: 0;
+    background: linear-gradient(135deg, #fff 0%, var(--color-primary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.login-subtitle-premium {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    letter-spacing: 4px;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.login-error-alert-luxury {
+    background: rgba(255, 77, 77, 0.1);
+    border: 1px solid rgba(255, 77, 77, 0.2);
+    color: #ff4d4d;
+    padding: 1rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+}
+
+.login-actions-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.btn-luxury-primary {
+    position: relative;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--color-primary), #006064);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.btn-luxury-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-inner {
+    background: var(--color-bg);
+    padding: 1rem;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--color-primary);
+    font-weight: 800;
+    letter-spacing: 1px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.btn-luxury-primary:hover .btn-inner {
+    background: transparent;
+    color: #000;
+}
+
+.btn-luxury-outline {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text);
+    padding: 1rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-luxury-outline:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-luxury-ghost {
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    color: var(--color-text-muted);
+    padding: 0.8rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-luxury-ghost:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.login-divider-luxury {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.5rem 0;
+}
+
+.login-divider-luxury::before,
+.login-divider-luxury::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.login-divider-luxury span {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    letter-spacing: 2px;
+    font-weight: 600;
+}
+
+.login-footer-premium {
+    margin-top: 3rem;
+    font-size: 0.6rem;
+    color: var(--color-text-muted);
+    letter-spacing: 2px;
+    opacity: 0.5;
+}

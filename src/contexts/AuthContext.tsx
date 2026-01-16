@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     }
 
                     // --- Real-time Memberships ---
-                    addLog("Subscribing to Memberships...");
+                    let firstSnapshotResolved = false;
                     const { collection, query, where, onSnapshot } = await import('firebase/firestore');
                     const membershipQuery = query(
                         collection(db, 'user_boxes'),
@@ -206,21 +206,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         }
 
                         // Determine current box
+                        let boxToSet = null;
                         if (boxesToDisplay.length > 0) {
-                            // Prioritize: 1. stats.currentBoxId (if exists in boxesToDisplay)
-                            //            2. first item in validBoxes (if regular user)
-                            //            3. first item in boxesToDisplay (fallback)
                             const targetId = stats.currentBoxId;
                             const savedBox = boxesToDisplay.find(b => b.id === targetId);
 
-                            if (!currentBox || !boxesToDisplay.find(b => b.id === currentBox.id)) {
-                                const boxToSet = savedBox || (isSuperAdmin ? boxesToDisplay[0] : (validBoxes[0] || boxesToDisplay[0]));
-                                addLog(`Setting current box to: ${boxToSet.name}`);
+                            // Logic to determine which box to active
+                            boxToSet = savedBox || (isSuperAdmin ? boxesToDisplay[0] : (validBoxes[0] || boxesToDisplay[0]));
+
+                            if (boxToSet && (!currentBox || !boxesToDisplay.find(b => b.id === currentBox.id))) {
+                                addLog(`Determined current box: ${boxToSet.name}`);
                                 setCurrentBoxState(boxToSet);
                             }
                         } else if (!isSuperAdmin) {
                             addLog("User has no boxes. Clearing currentBox.");
                             setCurrentBoxState(null);
+                        }
+
+                        // FINALIZE LOADING: Only when memberships are synced AND currentBox is decided
+                        if (!firstSnapshotResolved && mounted) {
+                            firstSnapshotResolved = true;
+                            clearTimeout(timer);
+                            setLoading(false);
+                            addLog("Auth sync complete. Loading finished.");
                         }
                     });
 
@@ -233,6 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     if (mounted) {
                         setUser(currentUser);
                         setUserStats(null);
+                        clearTimeout(timer);
+                        setLoading(false);
                     }
                 }
             } else {
@@ -241,12 +251,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUserStats(null);
                     setMemberships([]);
                     setCurrentBoxState(null);
+                    clearTimeout(timer);
+                    setLoading(false);
                 }
-            }
-
-            if (mounted) {
-                clearTimeout(timer);
-                setLoading(false);
             }
         });
 

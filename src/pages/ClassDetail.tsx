@@ -162,15 +162,21 @@ export function ClassDetail() {
                                     section.type === 'strength' ? 'var(--color-accent)' :
                                         section.type === 'skill' ? '#2196F3' : '#9E9E9E'
                             }
-                            defaultOpen={index > 0} // First item (usually warmup) closed by default? No, maybe all open or logic specific
+                            defaultOpen={index > 0}
                         />
                     ))
                 ) : (
-                    // Fallback for Legacy Data
+                    // Fallback for Legacy Data (Only show if fields actually exist)
                     <>
-                        {dailyClass.warmup && <ClassSectionAccordion title="Warm-up" section={dailyClass.warmup} color="#9E9E9E" />}
-                        {dailyClass.strength && <ClassSectionAccordion title="Strength" section={dailyClass.strength} defaultOpen={true} color="var(--color-accent)" />}
-                        {dailyClass.wod && <ClassSectionAccordion title="WOD" section={dailyClass.wod} defaultOpen={true} color="var(--color-neon)" />}
+                        {dailyClass.warmup && dailyClass.warmup.content && (
+                            <ClassSectionAccordion title="Warm-up" section={dailyClass.warmup} color="#9E9E9E" />
+                        )}
+                        {dailyClass.strength && dailyClass.strength.content && (
+                            <ClassSectionAccordion title="Strength" section={dailyClass.strength} defaultOpen={true} color="var(--color-accent)" />
+                        )}
+                        {dailyClass.wod && dailyClass.wod.content && (
+                            <ClassSectionAccordion title="WOD" section={dailyClass.wod} defaultOpen={true} color="var(--color-neon)" />
+                        )}
                     </>
                 )}
 

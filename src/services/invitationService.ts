@@ -5,7 +5,8 @@ import {
     where,
     getDocs,
     doc,
-    updateDoc
+    updateDoc,
+    deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { Invitation } from '../types/invitation';
@@ -193,4 +194,12 @@ export async function acceptAllPendingInvitations(userId: string, email: string)
         // Mark as used
         await updateDoc(inviteDoc.ref, { status: 'used' });
     }
+}
+
+/**
+ * Delete/Cancel an invitation
+ */
+export async function deleteInvitation(invitationId: string): Promise<void> {
+    const invRef = doc(db, INVITATION_COLLECTION, invitationId);
+    await deleteDoc(invRef);
 }

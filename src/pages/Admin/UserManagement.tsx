@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, Search, Users as UsersIcon, Mail, Plus, X, Clock, Check, Copy } from 'lucide-react';
+import { ArrowLeft, Shield, Search, Users as UsersIcon, Mail, Plus, X, Clock, Check, Copy, Trash2 } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useRole } from '../../hooks/useRole';
 import type { UserRole } from '../../types/user';
 import type { Invitation } from '../../types/invitation';
-import { createInvitation, getBoxInvitations } from '../../services/invitationService';
+import { createInvitation, getBoxInvitations, deleteInvitation } from '../../services/invitationService';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUsersByBox, updateUserBoxAndRole } from '../../services/userService';
 
@@ -176,9 +176,6 @@ export function UserManagement() {
 
     const handleCopyInviteLink = (invite: Invitation) => {
         // Construct Link
-        // Assuming app handles ?inviteToken=... or similar.
-        // For now, simpler: Just the token or a dummy URL if routing not ready
-        // Let's use origin + /login?invite=TOKEN
         const link = `${window.location.origin}/login?invite=${invite.token}`;
 
         navigator.clipboard.writeText(link).then(() => {
@@ -188,6 +185,27 @@ export function UserManagement() {
             console.error('Copy failed', err);
             alert('コピーに失敗しました');
         });
+    };
+
+    const handleDeleteInvitation = async (invitationId: string) => {
+        if (!window.confirm('この招待を取り消しますか？')) {
+            return;
+        }
+
+        const targetBoxId = boxId || (currentBox ? currentBox.id : null);
+        if (!targetBoxId) return;
+
+        setUpdating(invitationId);
+        try {
+            await deleteInvitation(invitationId);
+            setInvitations(invitations.filter(inv => inv.id !== invitationId));
+            alert('招待を取り消しました');
+        } catch (error) {
+            console.error('Error deleting invitation:', error);
+            alert('招待の取り消しに失敗しました');
+        } finally {
+            setUpdating(null);
+        }
     };
 
     const getRoleBadgeColor = (role: UserRole) => {
@@ -262,7 +280,7 @@ export function UserManagement() {
                                 cursor: 'pointer'
                             }}
                         >
-                            ユーザー
+                            メンバー
                         </button>
                         <button
                             onClick={() => setActiveTab('invitations')}
@@ -279,14 +297,14 @@ export function UserManagement() {
                                 gap: '8px'
                             }}
                         >
-                            招待中
+                            招待済み
                             <span style={{
                                 background: 'rgba(255,255,255,0.2)',
                                 padding: '2px 8px',
                                 borderRadius: '10px',
                                 fontSize: '0.8rem'
                             }}>
-                                {invitations.length}
+                                {invitations.filter(i => i.status === 'pending').length}
                             </span>
                         </button>
                     </div>
@@ -431,13 +449,13 @@ export function UserManagement() {
                 ) : (
                     /* Invitations List */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        {invitations.length === 0 ? (
+                        {invitations.filter(i => i.status === 'pending').length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                                 <Mail size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                                <div>招待中のユーザーはいません</div>
+                                <div>保留中の招待はありません</div>
                             </div>
                         ) : (
-                            invitations.map(invite => (
+                            invitations.filter(i => i.status === 'pending').map(invite => (
                                 <div key={invite.id} style={{
                                     background: 'var(--color-surface)',
                                     borderRadius: '12px',
@@ -497,6 +515,25 @@ export function UserManagement() {
                                         }}>
                                             {invite.status === 'pending' ? '招待中' : '登録完了'}
                                         </div>
+                                        {invite.status === 'pending' && (
+                                            <button
+                                                onClick={() => handleDeleteInvitation(invite.id)}
+                                                disabled={updating === invite.id}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: '#ff4444',
+                                                    cursor: 'pointer',
+                                                    padding: '4px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    opacity: updating === invite.id ? 0.5 : 1
+                                                }}
+                                                title="招待を取り消す"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))

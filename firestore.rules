@@ -59,11 +59,20 @@ service cloud.firestore {
             isAdminOfBox(resource.data.boxId)
         );
         
-        // Only Super Admin or Box Admin can write/delete memberships
-        allow create, update, delete: if isSignedIn() && (
+        // Allow creation if:
+        // 1. User is creating their own membership record (needed for joining via invitation)
+        // 2. User is Super Admin
+        // 3. User is Admin of the target Box
+        allow create: if isSignedIn() && (
+             request.resource.data.userId == request.auth.uid ||
              isSuperAdmin() ||
-             isAdminOfBox(request.resource.data.boxId) // For create
-             || isAdminOfBox(resource.data.boxId) // For update/delete
+             isAdminOfBox(request.resource.data.boxId)
+        );
+
+        // Only Super Admin or Box Admin can update/delete memberships
+        allow update, delete: if isSignedIn() && (
+             isSuperAdmin() ||
+             isAdminOfBox(resource.data.boxId)
         );
     }
 
@@ -114,10 +123,26 @@ service cloud.firestore {
       allow read, write: if isOwner(resource.data.uid) || isOwner(request.resource.data.uid);
     }
     match /calendar_entries/{entryId} {
-      allow read, write: if isOwner(resource.data.uid) || isOwner(request.resource.data.uid);
+      // 1. Personal entries (uid based)
+      allow read, write: if 
+        (resource != null && isOwner(resource.data.uid)) || 
+        (request.resource != null && isOwner(request.resource.data.uid));
+      
+      // 2. Class entries (Shared, box members and coaches)
+      allow read: if 
+        (resource != null && resource.data.type == 'class' && isMemberOfBox(resource.data.boxId));
+      
+      allow write: if 
+        (request.resource != null && request.resource.data.type == 'class' && isCoachOfBox(request.resource.data.boxId)) ||
+        (resource != null && resource.data.type == 'class' && isCoachOfBox(resource.data.boxId));
     }
     match /prs/{prId} {
       allow read, write: if isOwner(resource.data.uid) || isOwner(request.resource.data.uid);
+    }
+
+    // 6. Mail (Firebase Trigger Email Extension)
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
     }
   }
 }

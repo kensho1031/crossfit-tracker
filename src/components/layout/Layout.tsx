@@ -2,11 +2,14 @@ import { Link, Outlet } from 'react-router-dom';
 import { Dumbbell, ChevronDown, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../hooks/useRole';
+import { useState, useRef, useEffect } from 'react';
 import './Layout.css';
 
 export function Layout() {
     const { user, logout, myBoxes, currentBox, setCurrentBox } = useAuth();
     const { isDeveloper } = useRole();
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     const switchBox = (boxId: string) => {
         if (!setCurrentBox) return;
@@ -23,6 +26,23 @@ export function Layout() {
             console.error('Failed to logout', error);
         }
     };
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowUserMenu(false);
+            }
+        };
+
+        if (showUserMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showUserMenu]);
 
     return (
         <div className="layout-container">
@@ -64,29 +84,41 @@ export function Layout() {
                     </div>
 
                     {/* Right: User Menu */}
-                    <div className="header-actions">
-                        {user?.photoURL ? (
-                            <img
-                                src={user.photoURL}
-                                alt={user.displayName || 'User'}
-                                className="user-avatar"
-                                onClick={handleLogout}
-                                style={{
-                                    width: '36px',
-                                    height: '36px',
-                                    borderRadius: '50%',
-                                    cursor: 'pointer',
-                                    border: '2px solid rgba(255,255,255,0.1)'
-                                }}
-                            />
-                        ) : (
-                            <button
-                                onClick={handleLogout}
-                                className="logout-button-icon"
-                            >
-                                <LogOut size={18} />
-                            </button>
-                        )}
+                    <div className="header-actions" ref={menuRef}>
+                        <div className="user-menu-container">
+                            {user?.photoURL ? (
+                                <img
+                                    src={user.photoURL}
+                                    alt={user.displayName || 'User'}
+                                    className="user-avatar"
+                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                />
+                            ) : (
+                                <button
+                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    className="logout-button-icon"
+                                >
+                                    <LogOut size={18} />
+                                </button>
+                            )}
+
+                            {showUserMenu && (
+                                <div className="user-dropdown-menu">
+                                    <div className="user-dropdown-header">
+                                        <div className="user-dropdown-name">{user?.displayName || 'User'}</div>
+                                        <div className="user-dropdown-email">{user?.email}</div>
+                                    </div>
+                                    <div className="user-dropdown-divider"></div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="user-dropdown-logout"
+                                    >
+                                        <LogOut size={16} />
+                                        <span>Sign out</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </header>

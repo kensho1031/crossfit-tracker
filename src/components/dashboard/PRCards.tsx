@@ -153,6 +153,7 @@ export function PRCards() {
     };
 
     useEffect(() => {
+        console.log("PRCards mounted or refined trigger:", { uid: user?.uid, boxId: currentBox?.id });
         loadPRs();
     }, [user, currentBox?.id]);
 

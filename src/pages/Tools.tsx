@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { RandomWODGenerator } from '../components/tools/RandomWODGenerator';
 import { OneRepMaxCalculator } from '../components/tools/OneRepMaxCalculator';
 import { WeightConverter } from '../components/tools/WeightConverter';
@@ -5,6 +6,7 @@ import { Dumbbell, Users, Settings, Building2 } from 'lucide-react';
 import { useRole } from '../hooks/useRole';
 
 export function Tools() {
+    const navigate = useNavigate();
     const { canManageClasses, canManageUsers, canManageBoxes } = useRole();
 
 
@@ -47,7 +49,7 @@ export function Tools() {
                         <div style={{ display: 'grid', gap: '0.8rem' }}>
                             {canManageClasses && (
                                 <div
-                                    onClick={() => window.location.href = '/admin/class'}
+                                    onClick={() => navigate('/admin/class')}
                                     style={{
                                         cursor: 'pointer',
                                         display: 'flex',
@@ -71,7 +73,7 @@ export function Tools() {
                             )}
                             {canManageUsers && (
                                 <div
-                                    onClick={() => window.location.href = '/admin/users'}
+                                    onClick={() => navigate('/admin/users')}
                                     style={{
                                         cursor: 'pointer',
                                         display: 'flex',
@@ -95,7 +97,7 @@ export function Tools() {
                             )}
                             {canManageBoxes && (
                                 <div
-                                    onClick={() => window.location.href = '/admin/boxes'}
+                                    onClick={() => navigate('/admin/boxes')}
                                     style={{
                                         cursor: 'pointer',
                                         display: 'flex',

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../../components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card';
-import { LogIn } from 'lucide-react';
+import { LogIn, Globe, ShieldCheck, Zap } from 'lucide-react';
+import './Login.css';
 
 export function Login() {
     const { user, signInWithGoogle, loginAnonymously, loading: authLoading } = useAuth();
@@ -17,7 +16,6 @@ export function Login() {
         const inviteToken = params.get('invite');
         if (inviteToken) {
             sessionStorage.setItem('pending_invite_token', inviteToken);
-            console.log("Invite token captured:", inviteToken);
         }
 
         if (user && !authLoading) {
@@ -45,73 +43,69 @@ export function Login() {
     if (authLoading) return null;
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-4">
-            <Card className="w-full max-w-md border-primary/20 bg-card shadow-lg">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-3xl font-bold tracking-tight text-primary">
-                        CrossFit Tracker
-                    </CardTitle>
-                    <CardDescription className="text-lg text-muted-foreground">
-                        Sign in to track your progress
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
+        <div className="login-page-container">
+            <div className="login-bg-overlay"></div>
+
+            <div className="login-card-luxury">
+                <div className="login-header-premium">
+                    <div className="login-brand-logo">
+                        <Zap size={32} color="var(--color-primary)" fill="var(--color-primary)" />
+                    </div>
+                    <h1 className="login-title-premium">CROSSFIT TRACKER</h1>
+                    <p className="login-subtitle-premium">ULTIMATE PERFORMANCE HUB</p>
+                </div>
+
+                <div className="login-content-premium">
                     {loginError && (
-                        <div className="p-3 text-sm bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-center">
+                        <div className="login-error-alert-luxury">
                             {loginError}
                         </div>
                     )}
-                    <div className="flex flex-col gap-2">
-                        <Button
-                            size="lg"
-                            className="w-full gap-2 text-lg font-semibold"
+
+                    <div className="login-actions-group">
+                        <button
+                            className="btn-luxury-primary"
                             onClick={() => handleGoogleSignIn('popup')}
                             disabled={isProcessing}
                         >
-                            <LogIn className="h-5 w-5" />
-                            {isProcessing ? 'Connecting...' : 'Sign in with Google'}
-                        </Button>
-                        <div className="relative my-2">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t" />
+                            <div className="btn-inner">
+                                <LogIn size={20} />
+                                <span>{isProcessing ? 'AUTHENTICATING...' : 'SIGN IN WITH GOOGLE'}</span>
                             </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-card px-2 text-muted-foreground">
-                                    Or for mobile
-                                </span>
-                            </div>
+                        </button>
+
+                        <div className="login-divider-luxury">
+                            <span>OR BEST FOR MOBILE</span>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            className="w-full gap-2 text-lg"
+
+                        <button
+                            className="btn-luxury-outline"
                             onClick={() => handleGoogleSignIn('redirect')}
                             disabled={isProcessing}
                         >
-                            Sign in via Redirect
-                        </Button>
-                        <div className="relative my-2">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-card px-2 text-muted-foreground">
-                                    Guest Access
-                                </span>
-                            </div>
+                            <Globe size={18} />
+                            <span>VIA MOBILE BROWSER</span>
+                        </button>
+
+                        <div className="login-divider-luxury">
+                            <span>DEVELOPMENT ONLY</span>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            className="w-full gap-2 text-lg border-2 border-dashed border-muted hover:border-primary/50"
+
+                        <button
+                            className="btn-luxury-ghost"
                             onClick={() => loginAnonymously()}
                             disabled={isProcessing}
                         >
-                            Guest Login (Tester)
-                        </Button>
+                            <ShieldCheck size={18} />
+                            <span>GUEST ACCESS (TESTER)</span>
+                        </button>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+
+                <div className="login-footer-premium">
+                    &copy; 2026 CHRONO LUNAR SYSTEM V1.0
+                </div>
+            </div>
         </div>
     );
 }

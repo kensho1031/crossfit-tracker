@@ -97,10 +97,16 @@ export function WorkoutCalendar() {
         if (view === 'month') {
             const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
             const dateString = localDate.toISOString().split('T')[0];
-            if (logs[dateString]) {
+            if (logs[dateString] && logs[dateString].length > 0) {
                 return (
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
-                        <div className="activity-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary)' }}></div>
+                        <div className="activity-dot" style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: 'var(--color-primary)',
+                            boxShadow: '0 0 10px var(--color-primary)'
+                        }}></div>
                     </div>
                 );
             }

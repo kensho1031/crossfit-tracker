@@ -579,7 +579,7 @@ export function AdminTodayManager() {
                                         {section.title || section.type}
                                     </h3>
                                 </div>
-                                {(section.type === 'wod' || section.type === 'strength') && (
+                                {section.type === 'wod' && (
                                     <button
                                         type="button"
                                         onClick={() => openPresetModal(section.id)}
