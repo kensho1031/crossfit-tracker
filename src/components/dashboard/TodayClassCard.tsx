@@ -60,7 +60,7 @@ export function TodayClassCard({ date }: TodayClassCardProps) {
     }, [boxId, user, targetDateStr]);
 
     const handleCardClick = () => {
-        navigate('/class/today');
+        navigate(`/class/${targetDateStr}`);
     };
 
     if (loading) {

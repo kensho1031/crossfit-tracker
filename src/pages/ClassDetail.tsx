@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Users, Trophy, QrCode, X, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ClassSectionAccordion } from '../components/class/ClassSectionAccordion';
@@ -11,6 +11,7 @@ import type { DailyClass } from '../types/class';
 
 export function ClassDetail() {
     const navigate = useNavigate();
+    const { date } = useParams();
     const { canManageClasses, boxId, isVisitorExpired } = useRole();
     const [dailyClass, setDailyClass] = useState<DailyClass | null>(null);
     const [scores, setScores] = useState<any[]>([]); // Using any for MVP simplicity
@@ -19,6 +20,7 @@ export function ClassDetail() {
     const [showQRModal, setShowQRModal] = useState(false);
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const displayDate = date || todayStr;
 
     const fetchScores = async (classId: string) => {
         try {
@@ -39,7 +41,7 @@ export function ClassDetail() {
             }
 
             try {
-                const classData = await getDailyClass(todayStr, boxId);
+                const classData = await getDailyClass(displayDate, boxId);
                 setDailyClass(classData);
 
                 if (classData) {
@@ -54,7 +56,7 @@ export function ClassDetail() {
             }
         };
         init();
-    }, [todayStr, boxId]);
+    }, [displayDate, boxId]);
     if (isVisitorExpired) return (
         <div style={{ padding: '2rem', textAlign: 'center', marginTop: '2rem' }}>
             <h2 style={{ color: 'var(--color-text-muted)' }}>Account Expired</h2>
@@ -65,7 +67,7 @@ export function ClassDetail() {
         </div>
     );
 
-    const isToday = true; // For this route it is always today
+    const isToday = displayDate === todayStr;
     const canInputScore = isCheckedIn || isToday;
 
 
